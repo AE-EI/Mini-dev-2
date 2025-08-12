@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>MiniDevis Test</title>
+<title>MiniDevis Test avec Prix</title>
 <style>
   body { font-family: Arial, sans-serif; padding: 20px; }
   button { display: block; margin: 5px 0; padding: 10px; font-size: 16px; }
@@ -16,6 +16,17 @@
 <script>
 let devis = {};
 let currentRoom = '';
+
+const prix = {
+  "Prises - Encastree maconnerie": 120,
+  "Prises - Apparent": 100,
+  "Point lumineux - Encastree maconnerie": 80,
+  "Point lumineux - Apparent": 70,
+  "Interrupteur simple - Encastree maconnerie": 40,
+  "Interrupteur simple - Apparent": 30,
+  "Interrupteur double - Encastree maconnerie": 50,
+  "Interrupteur double - Apparent": 40
+};
 
 function showRooms() {
   document.getElementById('title').textContent = "Choisis une pièce :";
@@ -52,16 +63,18 @@ function showPose(type) {
 }
 
 function askQuantity(type, pose) {
-  let q = prompt(`Combien pour ${type} (${pose}) ?`);
-  if (!q) return showRooms();
-  devis[currentRoom].push(`${q} ${type} - ${pose}`);
+  if (type === 'Prises') {
+    let q = prompt(`Combien de prises (${pose}) ?`);
+    if (!q) return showRooms();
+    devis[currentRoom].push(`${q} prises 2p+T - ${pose} (${prix[`Prises - ${pose}`]}€/u)`);
+  }
   if (type === 'Éclairage') {
     let pts = prompt("Nombre de points lumineux ?");
+    if (pts) devis[currentRoom].push(`${pts} point lumineux - ${pose} (${prix[`Point lumineux - ${pose}`]}€/u)`);
     let intS = prompt("Nombre d'interrupteurs simples ?");
+    if (intS) devis[currentRoom].push(`${intS} interrupteur simple - ${pose} (${prix[`Interrupteur simple - ${pose}`]}€/u)`);
     let intD = prompt("Nombre d'interrupteurs doubles ?");
-    devis[currentRoom].push(`${pts} points lumineux - ${pose}`);
-    devis[currentRoom].push(`${intS} interrupteurs simples - ${pose}`);
-    devis[currentRoom].push(`${intD} interrupteurs doubles - ${pose}`);
+    if (intD) devis[currentRoom].push(`${intD} interrupteur double - ${pose} (${prix[`Interrupteur double - ${pose}`]}€/u)`);
   }
   askNote();
 }
