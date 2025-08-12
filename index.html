@@ -15,34 +15,31 @@
 </head>
 <body>
 
-<!-- Écran de connexion -->
-<div id="loginScreen">
-    <h2>Connexion</h2>
-    <p>Entrez le code d'accès :</p>
-    <input type="password" id="codeInput" placeholder="Code d'accès">
-    <button class="btn" onclick="checkCode()">Valider</button>
-    <p id="errorMsg" style="color:red;"></p>
-</div>
-
-<!-- Application -->
-<div id="app" class="hidden">
+<div id="app">
     <div id="bandeau">MiniDevis – vTestIS – 12/08/2025</div>
 
     <h2>Installations spécifiques</h2>
 
+    <!-- MISE À LA TERRE -->
     <h3>Mise à la terre</h3>
-    <button class="btn" onclick="addItem('Mise à la terre', 'Complète', 500)">Complète (500€)</button>
-    <button class="btn" onclick="addItem('Mise à la terre', 'Piquet supp. + 2m câblette', 100)">Piquet supp. (100€)</button>
-    <button class="btn" onclick="addItem('Mise à la terre', 'Partielle - Rempl. conducteur/m', 20)">Rempl. conducteur/m (20€)</button>
-    <button class="btn" onclick="addItem('Mise à la terre', 'Barrette de coupure', 40)">Barrette coupure (40€)</button>
+    <button class="btn" onclick="addItem('Mise à la terre', 'Complète : pose des raccordements du conducteur de terre principal en 16 mm² du tableau jusqu’à la barrette de coupure, pose d’une barrette de coupure, 4 piquets et 10 m de câblette de terre Ø25mm²', 500)">Complète (500€)</button>
+    <button class="btn" onclick="addItem('Mise à la terre', 'Piquet supplémentaire + 2 m de câblette 25 mm²', 100)">Piquet supp. (100€)</button>
+    <button class="btn" onclick="addItem('Mise à la terre', 'Partielle : remplacement du conducteur principal de terre 16 mm² (prix au mètre)', 20)">Rempl. conducteur/m (20€)</button>
+    <button class="btn" onclick="addItem('Mise à la terre', 'Partielle : pose d’une barrette de coupure', 40)">Barrette coupure (40€)</button>
 
+    <!-- VENTILATION -->
     <h3>Ventilation</h3>
-    <button class="btn" onclick="addItem('Ventilation', 'VMC simple flux', 800)">VMC simple flux (800€)</button>
-    <button class="btn" onclick="addItem('Ventilation', 'Pose chapeau toiture Ø125', 150)">Chapeau toiture Ø125 (150€)</button>
+    <button class="btn" onclick="addItem('Ventilation', 'VMC simple flux complète', 800)">VMC simple flux (800€)</button>
+    <button class="btn" onclick="addItem('Ventilation', 'Pose d’un chapeau de toiture Ø125', 150)">Chapeau toiture Ø125 (150€)</button>
+    <button class="btn" onclick="addItem('Ventilation', 'Gaine isolée Ø125/mètre', 20)">Gaine isolée Ø125/m (20€)</button>
+    <button class="btn" onclick="addItem('Ventilation', 'Bouche d’extraction Ø125', 30)">Bouche extraction Ø125 (30€)</button>
 
+    <!-- DISTRIBUTION TABLEAU -->
     <h3>Distribution tableau</h3>
-    <button class="btn" onclick="addItem('Distribution tableau', 'Tableau 4 rangées', 600)">Tableau 4 rangées (600€)</button>
+    <button class="btn" onclick="addItem('Distribution tableau', 'Tableau électrique complet 4 rangées', 600)">Tableau 4 rangées (600€)</button>
     <button class="btn" onclick="addItem('Distribution tableau', 'Peigne de répartition', 50)">Peigne répartition (50€)</button>
+    <button class="btn" onclick="addItem('Distribution tableau', 'Interrupteur différentiel 30mA type AC', 60)">Différentiel AC (60€)</button>
+    <button class="btn" onclick="addItem('Distribution tableau', 'Interrupteur différentiel 30mA type A', 70)">Différentiel A (70€)</button>
 
     <br><br>
     <button class="btn" onclick="showSummary()">Voir résumé</button>
@@ -53,18 +50,10 @@
 </div>
 
 <script>
-    const accessCode = "AE-0825";
-    let devis = {};
+    // Code d'accès conservé mais désactivé
+    const accessCode = "AE-0825"; 
 
-    function checkCode() {
-        const input = document.getElementById("codeInput").value;
-        if (input === accessCode) {
-            document.getElementById("loginScreen").classList.add("hidden");
-            document.getElementById("app").classList.remove("hidden");
-        } else {
-            document.getElementById("errorMsg").textContent = "Code incorrect.";
-        }
-    }
+    let devis = {};
 
     function addItem(section, item, price) {
         if (!devis[section]) devis[section] = [];
