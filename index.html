@@ -24,7 +24,6 @@
   .kpi { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--card); margin-bottom:8px; }
   .kpi .val { font-variant-numeric: tabular-nums; font-weight:700; }
   input[type="text"], input[type="number"] { width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; font-size:16px; }
-  .hidden { display:none; }
 </style>
 </head>
 <body>
@@ -33,41 +32,35 @@
 
 <script>
 /* ===========================
-   PARTIE 1 — BASE & HELPERS
+   BASE & CONSTANTES
    =========================== */
 
-/* Code d’accès conservé mais DÉSACTIVÉ (REQUIRE_CODE=false) */
 const ACCESS_CODE = "AE-0825";
 const REQUIRE_CODE = false;
 
-/* Pièces et sections */
 const PIECES = [
   "Cuisine","Chambre","Salle de bain","Salle d’eau","Garage",
   "Couloir","Débarras","Salon","Salle à manger","Extérieur","Grenier/combles"
 ];
 
-/* Poses disponibles pour les créations */
 const POSES = ["Encastré maçonnerie","Placo","Semi-encastré","Sur-mesure"];
 
-/* Catégories et désignations (côté pièces) */
 const DESIGNATIONS_PAR_CATEGORIE = {
   "Prises": ["Prise"],
   "Éclairage": ["Point de centre","Applique","Interrupteur simple","Interrupteur double"]
 };
 
-/* Tarifs centralisés (par défaut validés ensemble) */
 const TARIFS = {
   "Prise": { creation:120, recablage_sans:50, recablage_avec:70, remplacement:20 },
-  "Point de centre": { creation:100, recablage_sans:50, recablage_avec:75, remplacement:30 }, // remplacement = luminaire
-  "Applique": { creation:100, recablage_sans:50, recablage_avec:75, remplacement:30 },       // remplacement = luminaire
+  "Point de centre": { creation:100, recablage_sans:50, recablage_avec:75, remplacement:30 },
+  "Applique": { creation:100, recablage_sans:50, recablage_avec:75, remplacement:30 },
   "Interrupteur simple": { creation:40, recablage_sans:50, recablage_avec:75, remplacement:25 },
   "Interrupteur double": { creation:60, recablage_sans:50, recablage_avec:85, remplacement:35 }
 };
 
-/* Installations spécifiques — barème par défaut */
 const IS_TERRA = {
   complete_base: 500,
-  piquet_supp: 100, // +2m câblette inclus
+  piquet_supp: 100,
   part_conducteur_m: 20,
   part_barrette: 40,
   part_piquet_pack: 120
@@ -94,24 +87,20 @@ const IS_TABLEAU = {
   extension_tableau: 250
 };
 
-/* État global */
-let devis = {}; // { sectionLabel: { items:[{...}], note:"" } }
+let devis = {};
 let ctx = { piece:null, category:null, intervention:null, pose:null, designation:null };
 
-/* Rendu */
 const $app = () => document.getElementById('app');
 function view(html){ $app().innerHTML = html; }
 function b(label, action, cls="btn"){ return `<button class="${cls}" onclick="${action}">${label}</button>`; }
-
-/* Utilitaires */
 function euro(n){ return `${(+n).toFixed(2)} €`; }
-function sum(a){ return a.reduce((s,x)=>s+x,0); }
 
-/* Navigation de base */
+/* ===========================
+   ACCUEIL
+   =========================== */
+
 function pageHome(){
-  // Section pièces
   const btnPieces = PIECES.map(p=> b(p, `goPiece('${p}')`) ).join('');
-  // Section Installations spécifiques
   const isHtml = `
     ${b("Mise à la terre","pageISTerre()")}
     ${b("Ventilation","pageISVentil()")}
@@ -119,11 +108,11 @@ function pageHome(){
   `;
   view(`
     <div class="card">
-      <h2>Choisir une pièce</h2>
+      <h2>Choisissez une pièce</h2>
       <div class="grid-2">${btnPieces}</div>
       <div class="row" style="margin-top:12px;">
-        ${b("Voir totaux","pageTotals()")}
-        ${b("Voir l’estimatif","pageResume()")}
+        ${b("Voir totaux","pageTotaux()")}
+        ${b("Voir l’estimatif","pageEstimatif()")}
       </div>
     </div>
     <div class="card" style="margin-top:12px;">
@@ -134,7 +123,10 @@ function pageHome(){
   `);
 }
 
-/* Initialisation (code d’accès désactivé) */
+/* ===========================
+   CODE D’ACCÈS (désactivé)
+   =========================== */
+
 function init(){
   if(REQUIRE_CODE){
     view(`
@@ -153,23 +145,17 @@ function init(){
 }
 function checkCode(){
   const v = (document.getElementById('code').value||"").trim();
-  if(v===ACCESS_CODE) pageHome(); else {
-    document.getElementById('code_err').textContent = "Code incorrect.";
-  }
+  if(v==="AE-0825") pageHome();
+  else document.getElementById('code_err').textContent = "Code incorrect.";
 }
 
-/* Lance l’app */
-init();
-</script>
-</body>
-</html>
 /* ===========================
-   PARTIE 2 — LOGIQUE PIÈCES
+   LOGIQUE PIÈCES
    =========================== */
 
-/* Sélection d'une pièce */
 function goPiece(piece){
   ctx.piece = piece;
+  if(!devis[piece]) devis[piece] = { items:[], note:"" };
   const cats = Object.keys(DESIGNATIONS_PAR_CATEGORIE)
     .map(cat => b(cat, `goCategory('${cat}')`))
     .join('') + b("Spécifique",`pageSpecifique()`,"btn ghost");
@@ -178,16 +164,27 @@ function goPiece(piece){
       ${b("Retour","pageHome()","btn back")}
       <h2>${piece}</h2>
       <div class="row">${cats}</div>
+      <div class="row" style="margin-top:12px;">
+        ${b("Ajouter / modifier la note",`editNote()`,"btn")}
+      </div>
     </div>
   `);
 }
 
-/* Sélection de catégorie (Prises / Éclairage) */
+function editNote(){
+  const cur = (devis[ctx.piece] && devis[ctx.piece].note) || "";
+  const n = prompt(`Note pour ${ctx.piece}`, cur);
+  if(n!==null){
+    devis[ctx.piece].note = n.trim();
+  }
+  goPiece(ctx.piece);
+}
+
 function goCategory(cat){
   ctx.category = cat;
-  const interv = cat==="Prises"
-    ? ["Création","Remplacement appareillage","Recâblage sans remplacement appareillage","Recâblage avec remplacement appareillage"]
-    : ["Création","Remplacement luminaire","Recâblage sans remplacement appareillage","Recâblage avec remplacement appareillage"];
+  const interv = (cat==="Prises")
+    ? ["Création","Remplacement appareillage","Recâblage avec remplacement appareillage","Recâblage sans remplacement appareillage"]
+    : ["Création","Remplacement luminaire","Recâblage avec remplacement appareillage","Recâblage sans remplacement appareillage"];
   const buttons = interv.map(i=> b(i,`goIntervention('${i}')`)).join('');
   view(`
     <div class="card">
@@ -198,10 +195,8 @@ function goCategory(cat){
   `);
 }
 
-/* Intervention choisie */
 function goIntervention(interv){
   ctx.intervention = interv;
-  // Pose uniquement si création
   if(interv==="Création"){
     const poses = POSES.map(p=> b(p,`goDesignation('${p}')`)).join('');
     view(`
@@ -216,7 +211,6 @@ function goIntervention(interv){
   }
 }
 
-/* Désignation (prise, point de centre...) */
 function goDesignation(pose){
   ctx.pose = pose;
   const designations = DESIGNATIONS_PAR_CATEGORIE[ctx.category];
@@ -232,7 +226,6 @@ function goDesignation(pose){
   `);
 }
 
-/* Quantité */
 function pageQuantite(designation){
   ctx.designation = designation;
   const qtyBtns = Array.from({length:10},(_,i)=> b(i+1,`saveItem(${i+1})`)).join('');
@@ -245,7 +238,15 @@ function pageQuantite(designation){
   `);
 }
 
-/* Sauvegarde dans l'état global */
+function getPrix(designation, intervention){
+  const base = TARIFS[designation] || {};
+  if(intervention==="Création") return base.creation||0;
+  if(intervention.includes("sans remplacement")) return base.recablage_sans||0;
+  if(intervention.includes("avec remplacement")) return base.recablage_avec||0;
+  if(intervention.startsWith("Remplacement")) return base.remplacement||0;
+  return 0;
+}
+
 function saveItem(qty){
   const sec = ctx.piece;
   if(!devis[sec]) devis[sec] = { items:[], note:"" };
@@ -260,17 +261,6 @@ function saveItem(qty){
   pageHome();
 }
 
-/* Calcul du prix unitaire */
-function getPrix(designation, intervention){
-  const base = TARIFS[designation] || {};
-  if(intervention.includes("Création")) return base.creation||0;
-  if(intervention.includes("sans remplacement")) return base.recablage_sans||0;
-  if(intervention.includes("avec remplacement")) return base.recablage_avec||0;
-  if(intervention.includes("Remplacement")) return base.remplacement||0;
-  return 0;
-}
-
-/* Spécifique dans une pièce */
 function pageSpecifique(){
   const label = prompt("Nom de la prestation spécifique :","");
   if(!label) return goPiece(ctx.piece);
@@ -287,11 +277,11 @@ function pageSpecifique(){
   });
   pageHome();
 }
-/* ================================
-   PARTIE 3 — INSTALL. SPÉCIFIQUES
-   ================================ */
 
-/* Helper: ajout d’un poste “installation spécifique” */
+/* ===========================
+   INSTALLATIONS SPÉCIFIQUES
+   =========================== */
+
 function addIS(section, label, prixU, qty=1, unit="u"){
   if(!devis[section]) devis[section] = { items:[], note:"" };
   devis[section].items.push({
@@ -307,13 +297,7 @@ function addIS(section, label, prixU, qty=1, unit="u"){
   pageHome();
 }
 
-/* Helper: grille quantité 1..10 appelant une callback(qty) */
-function qtyGrid(title, cb){
-  const btns = Array.from({length:10},(_,i)=> b(i+1,`(${cb.toString()} )(${i+1})`)).join('');
-  // NOTE: on ne peut pas sérialiser cb directement, donc on génère une “factory” dédiée ci-dessous
-}
-
-/* ===== MISE À LA TERRE ===== */
+/* MISE À LA TERRE */
 function pageISTerre(){
   view(`
     <div class="card">
@@ -335,14 +319,12 @@ function terreComplete(){
     IS_TERRA.complete_base, 1, "u");
 }
 function terrePiquetSupp(){
-  // quantité de piquets supplémentaires
   const q = parseInt(prompt("Nombre de piquets supplémentaires (+2m de câblette chacun) :", "1")||"0",10);
   if(q>0) addIS("Mise à la terre","Piquet supplémentaire (+2m câblette)", IS_TERRA.piquet_supp, q, "u");
   else pageISTerre();
 }
 function terreRemplacementConducteur(){
-  // mètres de conducteur principal 16mm²
-  const m = parseFloat(prompt("Longueur de conducteur principal 16mm² (en mètres) :", "1")||"0");
+  const m = parseFloat(prompt("Longueur de conducteur principal 16mm² (m) :", "1")||"0");
   if(m>0) addIS("Mise à la terre","Remplacement conducteur principal 16mm²", IS_TERRA.part_conducteur_m, m, "m");
   else pageISTerre();
 }
@@ -355,7 +337,7 @@ function terrePiquetPack(){
   else pageISTerre();
 }
 
-/* ===== VENTILATION ===== */
+/* VENTILATION */
 function pageISVentil(){
   view(`
     <div class="card">
@@ -411,7 +393,7 @@ function ventilNettoyage(){
   addIS("Ventilation","Nettoyage / réglage réseau VMC", IS_VENTIL.nettoyage, 1, "u");
 }
 
-/* ===== DISTRIBUTION TABLEAU ===== */
+/* DISTRIBUTION TABLEAU */
 function pageISTableau(){
   view(`
     <div class="card">
@@ -464,9 +446,10 @@ function tabSecondaire(){
 function tabExtension(){
   addIS("Distribution tableau","Extension de tableau (rangées / modules)", IS_TABLEAU.extension_tableau, 1, "u");
 }
-/* ================================
-   PARTIE 4 — ESTIMATIF & TOTAUX
-   ================================ */
+
+/* ===========================
+   ESTIMATIF & TOTAUX
+   =========================== */
 
 function pageEstimatif(){
   let html = `<div class="card">
@@ -475,14 +458,20 @@ function pageEstimatif(){
   let totalGlobal = 0;
 
   for (const section in devis) {
-    if (!devis[section] || devis[section].items.length === 0) continue; // skip vides
+    if (!devis[section] || devis[section].items.length === 0) continue;
 
     let sectionTotal = 0;
     html += `<h3><strong>${section}</strong></h3><ul>`;
     devis[section].items.forEach(item => {
-      const prixTotal = item.prixU * item.qty;
+      const prixTotal = (item.prixU||0) * (item.qty||0);
       sectionTotal += prixTotal;
-      html += `<li>${item.intervention ? item.intervention + " — " : ""}${item.designation} (${item.qty} ${item.unit} × ${euro(item.prixU)} = ${euro(prixTotal)})</li>`;
+      const poseTxt = (item.intervention==="Création" && item.pose) ? ` ${item.pose.toLowerCase()}` : "";
+      let intervLabel = item.intervention || "";
+      if(item.designation==="Interrupteur simple" && item.intervention && item.intervention.startsWith("Remplacement")) intervLabel = "Remplacement interrupteur simple";
+      if(item.designation==="Interrupteur double" && item.intervention && item.intervention.startsWith("Remplacement")) intervLabel = "Remplacement interrupteur double";
+      const left = item.intervention ? `${intervLabel} — ` : "";
+      const unitTxt = item.unit ? item.unit : "u";
+      html += `<li>${left}${item.designation}${poseTxt} (${item.qty} ${unitTxt} × ${euro(item.prixU)} = ${euro(prixTotal)})</li>`;
     });
 
     if (devis[section].note) {
@@ -497,9 +486,6 @@ function pageEstimatif(){
   view(html);
 }
 
-/* ================================
-   PAGE TOTAUX SEULES (depuis accueil)
-   ================================ */
 function pageTotaux(){
   let html = `<div class="card">
                 ${b("Retour","pageHome()","btn back")}
@@ -508,7 +494,7 @@ function pageTotaux(){
 
   for (const section in devis) {
     if (!devis[section] || devis[section].items.length === 0) continue;
-    const sectionTotal = devis[section].items.reduce((sum, it) => sum + (it.prixU * it.qty), 0);
+    const sectionTotal = devis[section].items.reduce((sum, it) => sum + ((it.prixU||0) * (it.qty||0)), 0);
     totalGlobal += sectionTotal;
     html += `<p><strong>${section}</strong> : ${euro(sectionTotal)}</p>`;
   }
@@ -516,69 +502,16 @@ function pageTotaux(){
   html += `<hr><p><strong>Total global : ${euro(totalGlobal)}</strong></p></div>`;
   view(html);
 }
-/* ================================
-   PARTIE 5 — PAGE D'ACCUEIL
-   ================================ */
 
-const pieces = [
-  "Cuisine",
-  "Chambre",
-  "Salle de bain",
-  "Salle d'eau",
-  "Garage",
-  "Couloir",
-  "Débarras",
-  "Salon",
-  "Salle à manger",
-  "Extérieur",
-  "Grenier/Combles"
-];
-
-const installationsSpecifiques = [
-  "Mise à la terre",
-  "Ventilation",
-  "Distribution tableau"
-];
-
-function pageHome(){
-  let html = `<div class="card">
-                <h2>Choisissez une pièce</h2>
-                <div style="display:flex;flex-wrap:wrap;gap:10px;">`;
-  
-  pieces.forEach(piece => {
-    html += `<button style="flex:1 1 calc(50% - 10px);" onclick="selectPiece('${piece}')">${piece}</button>`;
-  });
-
-  html += `</div>
-           <h2 style="margin-top:20px;">Installations spécifiques</h2>
-           <div style="display:flex;flex-wrap:wrap;gap:10px;">`;
-
-  installationsSpecifiques.forEach(inst => {
-    html += `<button style="flex:1 1 calc(50% - 10px);" onclick="selectInstallation('${inst}')">${inst}</button>`;
-  });
-
-  html += `</div>
-           <hr>
-           ${b("Voir estimatif détaillé","pageEstimatif()","btn")}
-           ${b("Voir totaux","pageTotaux()","btn")}
-           </div>`;
-  
-  view(html);
-}
 /* ===========================
-   PARTIE 6 — COLLE-TOUT & ALIAS
+   ALIAS & START
    =========================== */
 
-/* Depuis l'accueil (Partie 5) */
-function selectPiece(piece){
-  goPiece(piece); // défini en Partie 2
-}
-function selectInstallation(inst){
-  if (inst === "Mise à la terre") return pageISTerre();     // Partie 3
-  if (inst === "Ventilation") return pageISVentil();         // Partie 3
-  if (inst === "Distribution tableau") return pageISTableau();// Partie 3
-}
+function pageResume(){ pageEstimatif(); }
+function pageTotals(){ pageTotaux(); }
 
-/* Harmonisation des noms (selon où tu cliques) */
-function pageResume(){ pageEstimatif(); } // alias -> Partie 4
-function pageTotals(){ pageTotaux(); }    // alias -> Partie 4
+init();
+</script>
+</main>
+</body>
+</html>
