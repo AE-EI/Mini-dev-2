@@ -13,16 +13,14 @@
   .muted { color:#666; font-size:13px; }
 </style>
 <script>
-// Anti-cache automatique
+// ----------- ANTI-CACHE 100% AUTOMATIQUE -----------
 (function() {
-  const version = Date.now();
-  const links = document.querySelectorAll('link[rel="stylesheet"], script[src]');
-  links.forEach(el => {
-    const attr = el.tagName === 'SCRIPT' ? 'src' : 'href';
-    if (el[attr] && !el[attr].includes('?v=')) {
-      el[attr] += (el[attr].includes('?') ? '&' : '?') + 'v=' + version;
-    }
-  });
+  const version = new Date().getTime(); // version unique à chaque build
+  if (!window.location.search.includes('v=')) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('v', version);
+    window.location.replace(url.toString());
+  }
 })();
 </script>
 </head>
