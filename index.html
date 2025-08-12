@@ -1,359 +1,74 @@
+<!-- MiniDevis - Version test connexion et bandeau -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>MiniDevis</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MiniDevis - Test</title>
 <style>
-  :root { --bg:#f7f7f7; --card:#fff; --txt:#111; --muted:#666; }
-  body { margin: 0; font-family: Arial, sans-serif; color:var(--txt); background:var(--bg); }
-  header { padding:16px; text-align:center; font-weight:700; background:var(--card); box-shadow:0 1px 0 #e9e9e9; position:sticky; top:0; z-index:5;}
-  main { padding:16px; max-width:900px; margin:0 auto; }
-  h2 { margin: 8px 0 12px; }
-  .row { display:flex; gap:8px; flex-wrap:wrap; }
-  .btn { padding:10px 14px; font-size:16px; background:#eee; border:1px solid #ccc; border-radius:6px; cursor:pointer; }
-  .btn.primary { background:#111; color:#fff; border-color:#000; }
-  .btn.ghost { background:#fff; }
-  .btn.back { background:#ddd; }
-  .grid-2 { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:10px; }
-  .grid-qty { display:grid; grid-template-columns: repeat(6, 56px); gap:8px; }
-  .card { background:var(--card); border:1px solid #e6e6e6; border-radius:10px; padding:14px; }
-  .muted { color:var(--muted); }
-  .hidden{ display:none; }
-  pre { white-space:pre-wrap; background:var(--card); border:1px solid #e6e6e6; padding:12px; border-radius:8px; }
-  .totals-list .line { display:flex; justify-content:space-between; padding:10px 12px; background:var(--card); border:1px solid #e6e6e6; border-radius:8px; margin-bottom:8px; }
-  .totals-list .amount { font-variant-numeric: tabular-nums; font-weight:700; }
-  input[type="text"], input[type="number"] { width:100%; padding:10px; border:1px solid #ccc; border-radius:6px; font-size:16px; }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .hidden { display: none; }
+    .btn { padding: 10px 15px; margin: 5px; background: #007BFF; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    .btn:hover { background: #0056b3; }
+    #bandeau { background: #eee; padding: 10px; margin-bottom: 20px; font-weight: bold; }
 </style>
 </head>
 <body>
-<header>MiniDevis</header>
-<main id="app"></main>
+
+<!-- Écran de connexion -->
+<div id="loginScreen">
+    <h2>Connexion</h2>
+    <p>Entrez le code d'accès :</p>
+    <input type="password" id="codeInput" placeholder="Code d'accès">
+    <button class="btn" onclick="checkCode()">Valider</button>
+    <p id="errorMsg" style="color:red;"></p>
+</div>
+
+<!-- Application -->
+<div id="app" class="hidden">
+    <div id="bandeau">MiniDevis – vTest – 12/08/2025</div>
+    <h2>Choisissez une pièce</h2>
+    <button class="btn" onclick="addItem('Cuisine', '1 prise')">Cuisine</button>
+    <button class="btn" onclick="addItem('Chambre', '1 point lumineux')">Chambre</button>
+    <br><br>
+    <button class="btn" onclick="showSummary()">Voir résumé</button>
+    <div id="summary" class="hidden">
+        <h3>Résumé :</h3>
+        <pre id="summaryText"></pre>
+    </div>
+</div>
 
 <script>
-/* ========= Tarifs modifiables =========
-  Tu peux ajuster ici sans toucher au reste du code.
-  Clés d'intervention: creation | recablage_sans | recablage_avec | remplacement
-*/
-const TARIFS = {
-  "Prise": { creation:120, recablage_sans:50, recablage_avec:70, remplacement:20 },
-  "Point de centre": { creation:100, recablage_sans:50, recablage_avec:75, remplacement:30 }, // remplacement = remplacement luminaire
-  "Applique": { creation:100, recablage_sans:50, recablage_avec:75, remplacement:30 },       // remplacement = remplacement luminaire
-  "Interrupteur simple": { creation:40, recablage_sans:50, recablage_avec:75, remplacement:25 },
-  "Interrupteur double": { creation:60, recablage_sans:50, recablage_avec:85, remplacement:35 }
-};
-/* ===================================== */
+    const accessCode = "AE-0825";
+    let devis = {};
 
-const PIECES = [
-  "Cuisine","Chambre","Salle de bain","Salle d’eau","Garage",
-  "Couloir","Débarras","Salon","Salle à manger","Extérieur","Grenier/combles"
-];
-
-const POSES = ["Encastré maçonnerie","Placo","Semi-encastré","Sur-mesure"];
-const DESIGNATIONS_PAR_CATEGORIE = {
-  "Prises": ["Prise"],
-  "Éclairage": ["Point de centre","Applique","Interrupteur simple","Interrupteur double"]
-};
-const INTERVENTIONS = [
-  "Création",
-  "Recâblage sans remplacement d’un appareillage",
-  "Recâblage avec remplacement d’un appareillage",
-  "Remplacement appareillage",     // pertinent pour Prise
-  "Remplacement luminaire"         // pertinent pour Point de centre / Applique
-  // (Remplacement interrupteur simple/double se gère via la désignation + remplacement)
-];
-
-let devis = {}; // { piece: { items:[{category,intervention,pose,designation,qty,price}], note:"" } }
-let ctx = { piece:null, category:null, intervention:null, pose:null, designation:null };
-
-/* =============== RENDER HELPERS =============== */
-const app = document.getElementById('app');
-function view(html){ app.innerHTML = html; }
-function btn(label, onclick, cls="btn"){ return `<button class="${cls}" onclick="${onclick}">${label}</button>`; }
-
-/* =============== PAGES =============== */
-function pageHome(){
-  const gridPieces = PIECES.map(p=> btn(p, `goPiece('${p}')`) ).join('');
-  const html = `
-    <div class="card">
-      <h2>Choisis une pièce</h2>
-      <div class="grid-2">${gridPieces}</div>
-      <div class="row" style="margin-top:12px;">
-        ${btn("Voir totaux","pageTotals()","btn")}
-        ${btn("Voir l’estimatif","pageResume()","btn")}
-      </div>
-      <p class="muted" style="margin-top:8px;">Astuce : ajoute <b>?v=3</b> à l’URL après une mise à jour pour forcer l’actualisation.</p>
-    </div>
-  `;
-  view(html);
-}
-function goPiece(piece){
-  ctx = { piece, category:null, intervention:null, pose:null, designation:null };
-  if(!devis[piece]) devis[piece] = { items:[], note:"" };
-  const html = `
-    <div class="row" style="margin-bottom:8px;">${btn("⬅ Retour","pageHome()","btn back")}</div>
-    <div class="card">
-      <h2>${piece}</h2>
-      <div class="row">
-        ${btn("Prises",`chooseCategory('Prises')`)}
-        ${btn("Éclairage",`chooseCategory('Éclairage')`)}
-      </div>
-      <div class="row" style="margin-top:4px;">
-        ${btn("Spécifique (libre)",`pageSpecifique()`,"btn ghost")}
-      </div>
-      <div class="row" style="margin-top:12px;">
-        ${btn("Ajouter / modifier la note",`editNote()`,"btn")}
-        ${btn("Voir l’estimatif","pageResume()","btn")}
-      </div>
-    </div>
-  `;
-  view(html);
-}
-
-function chooseCategory(category){
-  ctx.category = category;
-  // étape intervention
-  let interBtns = [
-    btn("Création",`pickIntervention('Création')`)
-  ];
-  interBtns.push(btn("Recâblage SANS remplacement",`pickIntervention('Recâblage sans remplacement d’un appareillage')`));
-  interBtns.push(btn("Recâblage AVEC remplacement",`pickIntervention('Recâblage avec remplacement d’un appareillage')`));
-  // Remplacement spécifique selon catégorie/désignation (on choisira plus tard la désignation)
-  // On propose les 2, ils seront interprétés selon la désignation choisie.
-  interBtns.push(btn("Remplacement appareillage",`pickIntervention('Remplacement appareillage')`));
-  interBtns.push(btn("Remplacement luminaire",`pickIntervention('Remplacement luminaire')`));
-
-  const html = `
-    <div class="row" style="margin-bottom:8px;">${btn("⬅ Retour",`goPiece('${ctx.piece}')`,"btn back")}</div>
-    <div class="card">
-      <h2>Type d’intervention — ${category}</h2>
-      <div class="row">${interBtns.join('')}</div>
-    </div>
-  `;
-  view(html);
-}
-
-function pickIntervention(intervention){
-  ctx.intervention = intervention;
-  if(intervention==="Création"){
-    // Création → on choisit la pose, puis la désignation
-    let poseBtns = POSES.map(p => btn(p, `pickPose('${p}')`) ).join('');
-    const html = `
-      <div class="row" style="margin-bottom:8px;">${btn("⬅ Retour",`chooseCategory('${ctx.category}')`,"btn back")}</div>
-      <div class="card">
-        <h2>Type de pose</h2>
-        <div class="row">${poseBtns}</div>
-      </div>
-    `;
-    view(html);
-  } else {
-    // Recâblage / Remplacement → pas de pose, on passe directement à la désignation
-    pageDesignation();
-  }
-}
-
-function pickPose(pose){
-  ctx.pose = pose;
-  pageDesignation();
-}
-
-function pageDesignation(){
-  const list = DESIGNATIONS_PAR_CATEGORIE[ctx.category];
-  let desBtns = list.map(d => btn(d, `pickDesignation('${d}')`) ).join('');
-  const html = `
-    <div class="row" style="margin-bottom:8px;">${btn("⬅ Retour", ctx.intervention==="Création" ? `pickIntervention('Création')` : `chooseCategory('${ctx.category}')`,"btn back")}</div>
-    <div class="card">
-      <h2>Désignation</h2>
-      <div class="row">${desBtns}</div>
-    </div>
-  `;
-  view(html);
-}
-
-function pickDesignation(desig){
-  ctx.designation = desig;
-  pageQuantite();
-}
-
-function pageQuantite(){
-  // grille 1..10
-  let qtyBtns = '';
-  for(let i=1;i<=10;i++){
-    qtyBtns += btn(i, `validateItem(${i})`);
-  }
-  const html = `
-    <div class="row" style="margin-bottom:8px;">${btn("⬅ Retour","pageDesignation()","btn back")}</div>
-    <div class="card">
-      <h2>Quantité</h2>
-      <div class="grid-qty">${qtyBtns}</div>
-    </div>
-  `;
-  view(html);
-}
-
-function prixUnitairePour(ctx){
-  const t = TARIFS[ctx.designation] || TARIFS["Prise"]; // fallback
-  if(ctx.intervention==="Création") return t.creation;
-  if(ctx.intervention==="Recâblage sans remplacement d’un appareillage") return t.recablage_sans;
-  if(ctx.intervention==="Recâblage avec remplacement d’un appareillage") return t.recablage_avec;
-
-  // Remplacements : sémantique dépend de la désignation
-  if(ctx.intervention==="Remplacement appareillage"){
-    // Pertinent surtout pour "Prise"
-    return (TARIFS[ctx.designation]||{}).remplacement ?? 0;
-  }
-  if(ctx.intervention==="Remplacement luminaire"){
-    // Pertinent pour Point de centre / Applique
-    return (TARIFS[ctx.designation]||{}).remplacement ?? 0;
-  }
-  // Si intervention "Remplacement ..." générique (ex interrupteurs) :
-  if(ctx.intervention.startsWith("Remplacement")) {
-    return (TARIFS[ctx.designation]||{}).remplacement ?? 0;
-  }
-  return 0;
-}
-
-function validateItem(qty){
-  const price = prixUnitairePour(ctx);
-  const item = {
-    category: ctx.category,
-    intervention: ctx.intervention,  // Création | Recâblage ... | Remplacement ...
-    pose: (ctx.intervention==="Création") ? ctx.pose : null,
-    designation: ctx.designation,    // Prise / Point de centre / Applique / Interrupteur simple/double
-    qty: qty,
-    price: price
-  };
-  devis[ctx.piece].items.push(item);
-  // reset partiel & retour à la pièce
-  ctx.category = null; ctx.intervention=null; ctx.pose=null; ctx.designation=null;
-  goPiece(ctx.piece);
-}
-
-/* ----- Spécifique libre ----- */
-function pageSpecifique(){
-  const html = `
-    <div class="row" style="margin-bottom:8px;">${btn("⬅ Retour",`goPiece('${ctx.piece}')`,"btn back")}</div>
-    <div class="card">
-      <h2>Spécifique (libre)</h2>
-      <div style="display:grid; gap:10px; max-width:520px;">
-        <input id="spec_desc" type="text" placeholder="Désignation (ex: déplacement d’un point, saignée...)">
-        <input id="spec_price" type="number" step="0.01" placeholder="Prix unitaire €">
-        <input id="spec_qty" type="number" min="1" value="1" placeholder="Quantité">
-        <div class="row">
-          ${btn("Ajouter",`addSpecifique()`,"btn primary")}
-        </div>
-      </div>
-    </div>
-  `;
-  view(html);
-}
-function addSpecifique(){
-  const d = (document.getElementById('spec_desc').value||"Spécifique").trim();
-  const p = parseFloat(document.getElementById('spec_price').value||"0");
-  const q = Math.max(1, parseInt(document.getElementById('spec_qty').value||"1",10));
-  devis[ctx.piece].items.push({
-    category:"Spécifique",
-    intervention:"Spécifique",
-    pose:null,
-    designation:d,
-    qty:q,
-    price:isFinite(p)?p:0
-  });
-  goPiece(ctx.piece);
-}
-
-/* ----- Notes ----- */
-function editNote(){
-  const cur = devis[ctx.piece].note||"";
-  const n = prompt(`Note pour ${ctx.piece}`, cur);
-  if(n!==null) devis[ctx.piece].note = n.trim();
-  goPiece(ctx.piece);
-}
-
-/* ----- Résumé ----- */
-function pageResume(){
-  let text = "";
-  for(const piece of PIECES){
-    const data = devis[piece];
-    text += `**${piece}**\n`;
-    if(!data || !data.items.length){
-      if(data && data.note) text += `_${data.note}_\n`;
-      text += `\n`;
-      continue;
+    function checkCode() {
+        const input = document.getElementById("codeInput").value;
+        if (input === accessCode) {
+            document.getElementById("loginScreen").classList.add("hidden");
+            document.getElementById("app").classList.remove("hidden");
+        } else {
+            document.getElementById("errorMsg").textContent = "Code incorrect.";
+        }
     }
-    for(const it of data.items){
-      const poseTxt = (it.intervention==="Création" && it.pose) ? ` ${it.pose.toLowerCase()}` : "";
-      let interventionLabel = it.intervention;
-      // Clarifier interrupteurs (remplacement)
-      if(it.designation==="Interrupteur simple" && it.intervention.startsWith("Remplacement")) interventionLabel = "Remplacement interrupteur simple";
-      if(it.designation==="Interrupteur double" && it.intervention.startsWith("Remplacement")) interventionLabel = "Remplacement interrupteur double";
-      text += `- ${interventionLabel} : ${it.qty} ${it.designation.toLowerCase()}${poseTxt} (${it.price}€/u)\n`;
+
+    function addItem(piece, item) {
+        if (!devis[piece]) devis[piece] = [];
+        devis[piece].push(item);
+        alert(item + " ajouté à " + piece);
     }
-    if(data.note) text += `_${data.note}_\n`;
-    text += `\n`;
-  }
 
-  const html = `
-    <div class="row" style="margin-bottom:8px;">${btn("⬅ Retour","pageHome()","btn back")}</div>
-    <div class="card">
-      <h2>Estimatif</h2>
-      <pre id="resume_pre">${text.trim()}</pre>
-      <div class="row">
-        ${btn("Copier le texte","copyResume()","btn")}
-        ${btn("Télécharger .txt","downloadTxt()","btn")}
-      </div>
-    </div>
-  `;
-  view(html);
-}
-function copyResume(){
-  const t = document.getElementById('resume_pre').innerText;
-  navigator.clipboard.writeText(t).then(()=>alert("Résumé copié !"));
-}
-function downloadTxt(){
-  const t = document.getElementById('resume_pre').innerText;
-  const blob = new Blob([t], {type:"text/plain"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = "devis.txt"; a.click();
-  URL.revokeObjectURL(url);
-}
-
-/* ----- Totaux ----- */
-function totalPiece(piece){
-  const data = devis[piece];
-  if(!data || !data.items.length) return 0;
-  return data.items.reduce((s,it)=> s + it.qty*it.price, 0);
-}
-function pageTotals(){
-  let lines = "";
-  let grand = 0;
-  for(const piece of PIECES){
-    const t = totalPiece(piece);
-    grand += t;
-    lines += `
-      <div class="line">
-        <div>${piece}</div>
-        <div class="amount">${t.toFixed(2)} €</div>
-      </div>
-    `;
-  }
-  const html = `
-    <div class="row" style="margin-bottom:8px;">${btn("⬅ Retour","pageHome()","btn back")}</div>
-    <div class="card">
-      <h2>Totaux par pièce</h2>
-      <div class="totals-list">${lines}</div>
-      <div class="line" style="background:#111; color:#fff; border:none;">
-        <div><b>Total global</b></div>
-        <div class="amount">${grand.toFixed(2)} €</div>
-      </div>
-    </div>
-  `;
-  view(html);
-}
-
-/* ====== Start ====== */
-pageHome();
+    function showSummary() {
+        let output = "";
+        for (let piece in devis) {
+            output += piece + " :\n";
+            devis[piece].forEach(el => output += "- " + el + "\n");
+            output += "\n";
+        }
+        document.getElementById("summaryText").textContent = output;
+        document.getElementById("summary").classList.remove("hidden");
+    }
 </script>
+
 </body>
 </html>
