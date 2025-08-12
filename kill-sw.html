@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Réinitialisation du cache</title>
+<pre id="log">Nettoyage…</pre>
+<script>
+(async () => {
+  const log = m => (document.getElementById('log').textContent += "\n" + m);
+  try {
+    if ('serviceWorker' in navigator) {
+      log('Désinscription du service worker…');
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const r of regs) await r.unregister();
+      log('Service worker désinscrit.');
+    } else {
+      log('Pas de service worker détecté.');
+    }
+    if (window.caches) {
+      const keys = await caches.keys();
+      for (const k of keys) await caches.delete(k);
+      log('Caches supprimés: ' + (keys || []).join(', '));
+    }
+    log('Recharge…');
+    location.href = 'index.html?v=' + Date.now();
+  } catch (e) {
+    log('Erreur: ' + e);
+  }
+})();
+</script>
