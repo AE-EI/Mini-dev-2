@@ -35,7 +35,6 @@
 <p class="muted">Version simple avec anti-cache automatique.</p>
 
 <script>
-/* ---------- Données ---------- */
 const PRIX = {
   "Prises - Encastree maconnerie": 120,
   "Prises - Apparent": 100,
@@ -47,25 +46,13 @@ const PRIX = {
   "Interrupteur double - Apparent": 50
 };
 
-const state = {
-  devis: {},
-  notes: {},
-  currentRoom: null,
-  currentType: null,
-  currentPose: null
-};
-
-/* ---------- Helpers DOM ---------- */
+const state = { devis: {}, notes: {}, currentRoom: null, currentType: null, currentPose: null };
 const $t = () => document.getElementById("title");
 const $c = () => document.getElementById("content");
 function btn(label, handler) { const b = document.createElement("button"); b.textContent = label; b.onclick = handler; return b; }
 
-/* ---------- Navigation ---------- */
 function resetAll() {
-  state.devis = {};
-  state.notes = {};
-  state.currentRoom = null;
-  showRooms();
+  state.devis = {}; state.notes = {}; state.currentRoom = null; showRooms();
 }
 
 function showRooms() {
@@ -126,7 +113,6 @@ function askLighting() {
   next();
 }
 
-/* ---------- Spécifique ---------- */
 function addSpecific() {
   const desc = prompt("Description de l'élément spécifique :");
   if (!desc) return showTypes();
@@ -136,7 +122,6 @@ function addSpecific() {
   showSummary();
 }
 
-/* ---------- Utilitaires ---------- */
 function qtyGrid(label, unitPrice, cb) {
   $t().textContent = `Quantité — ${label}`;
   $c().innerHTML = "";
@@ -154,11 +139,8 @@ function qtyGrid(label, unitPrice, cb) {
   $c().appendChild(grid);
 }
 
-function keyPrice(kind) {
-  return PRIX[`${kind} - ${state.currentPose}`] ?? 0;
-}
+function keyPrice(kind) { return PRIX[`${kind} - ${state.currentPose}`] ?? 0; }
 
-/* ---------- Résumé / Notes / Texte ---------- */
 function showSummary() {
   $t().textContent = "Résumé du devis :";
   let html = "<pre>";
@@ -199,9 +181,7 @@ function showText() {
   $c().innerHTML = `<pre>${out || "(vide)"}</pre><div class="row"><button onclick="showSummary()">Retour</button></div>`;
 }
 
-/* ---------- Init ---------- */
 showRooms();
 </script>
-
 </body>
 </html>
