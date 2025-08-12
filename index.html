@@ -3,206 +3,213 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MiniDevis</title>
+<title>Créateur de Devis</title>
 <style>
-  body { font-family: Arial, sans-serif; margin: 20px; background: #f7f7f7; }
-  h1, h2 { text-align: center; }
-  button { padding: 10px; margin: 5px; font-size: 16px; cursor: pointer; }
-  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .back-btn { background: #ccc; }
-  .copy-btn { background: #4CAF50; color: white; }
-  pre { background: white; padding: 10px; border: 1px solid #ddd; white-space: pre-wrap; }
+  body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+  h2 { margin-bottom: 10px; }
+  .btn { display: inline-block; margin: 5px; padding: 10px 15px; background: #333; color: white; text-decoration: none; border-radius: 5px; cursor: pointer; }
+  .btn:hover { background: #555; }
+  .back-btn { background: #999; }
+  .hidden { display: none; }
+  textarea { width: 100%; height: 80px; }
 </style>
 </head>
 <body>
 
-<h1>MiniDevis</h1>
-<div id="app"></div>
-
 <script>
-// ================= PRIX CONFIGURABLES =================
-const prix = {
-  'prise_creation_encastre': 120,
-  'prise_creation_placo': 120,
-  'prise_creation_semi': 120,
-  'prise_creation_surmesure': 120,
-  'prise_recablage_sans_remplacement': 50,
-  'prise_recablage_avec_remplacement': 70, // 50 + 20
-  'prise_remplacement': 20,
-  'interrupteur_simple': 40,
-  'interrupteur_double': 60,
-  'point_lumineux': 80,
-  'specifique': 0
+/* 
+=============================
+💡 COMMENT CHANGER LES PRIX
+=============================
+- Tous les prix sont définis dans l'objet `tarifs` ci-dessous.
+- Exemple : tarifs["Prise"].creation = 150; // change prix création prise
+- Les clés : creation, recablage_sans, recablage_avec, remplacement
+*/
+
+const tarifs = {
+  "Prise": { creation: 120, recablage_sans: 50, recablage_avec: 70, remplacement: 20 },
+  "Point de centre": { creation: 100, recablage_sans: 50, recablage_avec: 75, remplacement: 30 },
+  "Applique": { creation: 100, recablage_sans: 50, recablage_avec: 75, remplacement: 30 },
+  "Interrupteur simple": { creation: 40, recablage_sans: 50, recablage_avec: 75, remplacement: 25 },
+  "Interrupteur double": { creation: 60, recablage_sans: 50, recablage_avec: 85, remplacement: 35 }
 };
-// ======================================================
 
 let devis = {};
+let currentPiece = "";
+let currentCategory = "";
+let currentIntervention = "";
+let currentPose = "";
+let currentDesignation = "";
 
-function showPieces() {
-  const pieces = [
-    "Cuisine", "Chambre", "Salle de bain", "Salle d'eau", "Garage", "Couloir",
-    "Débarras", "Salon", "Salle à manger", "Extérieur", "Grenier/combles"
-  ];
-  let html = "<h2>Choisissez une pièce</h2><div class='grid'>";
-  pieces.forEach(p => {
-    html += `<button onclick="selectPiece('${p}')">${p}</button>`;
-  });
-  html += "</div><button onclick='showResume()'>Voir Résumé</button>";
-  document.getElementById("app").innerHTML = html;
+// Navigation helpers
+function showPage(id) {
+  document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
 }
 
+// Ajouter une pièce
 function selectPiece(piece) {
-  devis[piece] = devis[piece] || { elements: [], note: "" };
-  let html = `<button class='back-btn' onclick="showPieces()">⬅ Retour</button>`;
-  html += `<h2>${piece}</h2>`;
-  html += `<div class='grid'>
-    <button onclick="selectElement('${piece}','prises')">Prises</button>
-    <button onclick="selectElement('${piece}','eclairage')">Éclairage</button>
-    <button onclick="selectElement('${piece}','specifique')">Spécifique</button>
-  </div>`;
-  html += `<button onclick="addNote('${piece}')">Ajouter/Modifier Note</button>`;
-  document.getElementById("app").innerHTML = html;
+  currentPiece = piece;
+  if (!devis[piece]) devis[piece] = { items: [], note: "" };
+  showPage("categoryPage");
 }
 
-function selectElement(piece, type) {
-  if (type === 'prises') {
-    showPrisesType(piece);
-  } else if (type === 'eclairage') {
-    showEclairageType(piece);
-  } else if (type === 'specifique') {
-    showSpecifique(piece);
+// Sélection catégorie (Prises ou Éclairage)
+function selectCategory(cat) {
+  currentCategory = cat;
+  showPage("interventionPage");
+}
+
+// Type d’intervention
+function selectIntervention(type) {
+  currentIntervention = type;
+  if (type === "Création") {
+    showPage("posePage");
+  } else if (type.startsWith("Recâblage")) {
+    showPage("designationPage");
+  } else if (type.startsWith("Remplacement")) {
+    showPage("designationPage");
   }
 }
 
-// ===== PRISES FLOW =====
-function showPrisesType(piece) {
-  let html = `<button class='back-btn' onclick="selectPiece('${piece}')">⬅ Retour</button>`;
-  html += `<h2>Type d'intervention</h2><div class='grid'>
-    <button onclick="priseCreation('${piece}')">Création</button>
-    <button onclick="priseRecablage('${piece}')">Recâblage</button>
-    <button onclick="priseRemplacement('${piece}')">Remplacement</button>
-  </div>`;
-  document.getElementById("app").innerHTML = html;
+// Type de pose
+function selectPose(pose) {
+  currentPose = pose;
+  showPage("designationPage");
 }
 
-function priseCreation(piece) {
-  showPose(piece, 'prise_creation');
+// Désignation
+function selectDesignation(designation) {
+  currentDesignation = designation;
+  showPage("quantityPage");
 }
 
-function priseRecablage(piece) {
-  let html = `<button class='back-btn' onclick="showPrisesType('${piece}')">⬅ Retour</button>`;
-  html += `<h2>Recâblage</h2><div class='grid'>
-    <button onclick="qtyGrid('${piece}','Prise recâblage sans remplacement',prix.prise_recablage_sans_remplacement)">Sans remplacement</button>
-    <button onclick="qtyGrid('${piece}','Prise recâblage avec remplacement',prix.prise_recablage_avec_remplacement)">Avec remplacement</button>
-  </div>`;
-  document.getElementById("app").innerHTML = html;
-}
+// Ajouter l’élément
+function addItem(qty) {
+  let prix = 0;
+  let catPrix = tarifs[currentDesignation] || tarifs[currentCategory];
+  if (currentIntervention === "Création") {
+    prix = catPrix.creation;
+  } else if (currentIntervention === "Recâblage sans remplacement d’un appareillage") {
+    prix = catPrix.recablage_sans;
+  } else if (currentIntervention === "Recâblage avec remplacement d’un appareillage" || currentIntervention.includes("luminaire")) {
+    prix = catPrix.recablage_avec;
+  } else if (currentIntervention.startsWith("Remplacement")) {
+    prix = catPrix.remplacement;
+  }
 
-function priseRemplacement(piece) {
-  qtyGrid(piece, 'Remplacement appareillage', prix.prise_remplacement);
-}
-
-// ===== ÉCLAIRAGE FLOW =====
-function showEclairageType(piece) {
-  let html = `<button class='back-btn' onclick="selectPiece('${piece}')">⬅ Retour</button>`;
-  html += `<h2>Type d'éclairage</h2><div class='grid'>
-    <button onclick="showPose('${piece}','point_lumineux')">Point lumineux</button>
-    <button onclick="showPose('${piece}','interrupteur_simple')">Interrupteur simple</button>
-    <button onclick="showPose('${piece}','interrupteur_double')">Interrupteur double</button>
-  </div>`;
-  document.getElementById("app").innerHTML = html;
-}
-
-// ===== SPÉCIFIQUE =====
-function showSpecifique(piece) {
-  let html = `<button class='back-btn' onclick="selectPiece('${piece}')">⬅ Retour</button>`;
-  html += `<h2>Élément spécifique</h2>
-    <input id="specName" placeholder="Nom" style="width:100%;margin-bottom:10px;">
-    <input id="specPrice" type="number" placeholder="Prix €" style="width:100%;margin-bottom:10px;">
-    <button onclick="qtyGrid('${piece}',document.getElementById('specName').value,parseFloat(document.getElementById('specPrice').value||0))">Suivant</button>`;
-  document.getElementById("app").innerHTML = html;
-}
-
-// ===== TYPE DE POSE =====
-function showPose(piece, baseKey) {
-  const poses = [
-    {name:"Encastré maçonnerie", key:"_encastre"},
-    {name:"Placo", key:"_placo"},
-    {name:"Semi-encastré", key:"_semi"},
-    {name:"Sur-mesure", key:"_surmesure"}
-  ];
-  let html = `<button class='back-btn' onclick="selectPiece('${piece}')">⬅ Retour</button>`;
-  html += `<h2>Type de pose</h2><div class='grid'>`;
-  poses.forEach(p => {
-    let fullKey = baseKey + p.key;
-    html += `<button onclick="qtyGrid('${piece}','${p.name}',prix['${fullKey}'])">${p.name}</button>`;
+  devis[currentPiece].items.push({
+    intervention: currentIntervention,
+    pose: currentPose,
+    designation: currentDesignation,
+    prix: prix,
+    qty: qty
   });
-  html += "</div>";
-  document.getElementById("app").innerHTML = html;
+
+  resetFlow();
+  showPage("homePage");
 }
 
-// ===== QUANTITÉS =====
-function qtyGrid(piece, label, unitPrice) {
-  let html = `<button class='back-btn' onclick="selectPiece('${piece}')">⬅ Retour</button>`;
-  html += `<h2>${label}</h2><div class='grid'>`;
-  for (let i = 1; i <= 10; i++) {
-    html += `<button onclick="addItem('${piece}','${label}',${unitPrice},${i})">${i}</button>`;
-  }
-  html += "</div>";
-  document.getElementById("app").innerHTML = html;
+// Ajouter une note
+function addNote() {
+  devis[currentPiece].note = document.getElementById("noteInput").value;
+  showPage("homePage");
 }
 
-function addItem(piece, label, price, qty) {
-  devis[piece].elements.push({ label, price, qty });
-  selectPiece(piece);
+// Reset variables
+function resetFlow() {
+  currentCategory = "";
+  currentIntervention = "";
+  currentPose = "";
+  currentDesignation = "";
 }
 
-// ===== NOTES =====
-function addNote(piece) {
-  let current = devis[piece].note || "";
-  let note = prompt("Note pour " + piece, current);
-  if (note !== null) devis[piece].note = note;
-  selectPiece(piece);
-}
-
-// ===== RÉSUMÉ =====
-function showResume() {
-  let html = `<button class='back-btn' onclick="showPieces()">⬅ Retour</button>`;
-  html += `<h2>Résumé</h2><pre id="resumeText">${getResumeText()}</pre>`;
-  html += `<button class='copy-btn' onclick="copyText()">Copier le texte</button>`;
-  html += `<button onclick="downloadTxt()">Télécharger .txt</button>`;
-  document.getElementById("app").innerHTML = html;
-}
-
-function getResumeText() {
-  let text = "";
+// Voir le résumé
+function viewSummary() {
+  let output = "";
   for (let piece in devis) {
-    text += `**${piece}**\n`;
-    devis[piece].elements.forEach(el => {
-      text += `-${el.qty} ${el.label} (${el.price}€/u)\n`;
+    output += `<b>${piece}</b><br>`;
+    devis[piece].items.forEach(item => {
+      let poseTxt = item.pose ? ` ${item.pose}` : "";
+      output += `- ${item.intervention} : ${item.qty} ${item.designation}${poseTxt} (${item.prix}€/u)<br>`;
     });
-    if (devis[piece].note) text += `*${devis[piece].note}*\n`;
-    text += "\n";
+    if (devis[piece].note) {
+      output += `<i>Note : ${devis[piece].note}</i><br>`;
+    }
+    output += `<br>`;
   }
-  return text.trim();
+  document.getElementById("summaryContent").innerHTML = output;
+  showPage("summaryPage");
 }
 
-function copyText() {
-  navigator.clipboard.writeText(getResumeText()).then(() => {
-    alert("Résumé copié !");
-  });
-}
-
-function downloadTxt() {
-  const blob = new Blob([getResumeText()], { type: 'text/plain' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "devis.txt";
-  a.click();
-}
-
-showPieces();
 </script>
+
+<!-- Pages -->
+<div id="homePage" class="page">
+  <h2>Choisir une pièce</h2>
+  <button class="btn" onclick="selectPiece('Cuisine')">Cuisine</button>
+  <button class="btn" onclick="selectPiece('Chambre')">Chambre</button>
+  <button class="btn" onclick="selectPiece('Salle de bain')">Salle de bain</button>
+  <button class="btn" onclick="selectPiece('Salle d\'eau')">Salle d'eau</button>
+  <button class="btn" onclick="selectPiece('Garage')">Garage</button>
+  <button class="btn" onclick="selectPiece('Couloir')">Couloir</button>
+  <button class="btn" onclick="selectPiece('Débarras')">Débarras</button>
+  <button class="btn" onclick="selectPiece('Salon')">Salon</button>
+  <button class="btn" onclick="selectPiece('Salle à manger')">Salle à manger</button>
+  <button class="btn" onclick="selectPiece('Extérieur')">Extérieur</button>
+  <button class="btn" onclick="selectPiece('Grenier / Combles')">Grenier / Combles</button>
+  <hr>
+  <button class="btn" onclick="viewSummary()">Voir l'estimatif</button>
+</div>
+
+<div id="categoryPage" class="page hidden">
+  <h2>Choisir une catégorie</h2>
+  <button class="btn" onclick="selectCategory('Prise')">Prises</button>
+  <button class="btn" onclick="selectCategory('Éclairage')">Éclairage</button>
+  <button class="btn back-btn" onclick="showPage('homePage')">Retour</button>
+</div>
+
+<div id="interventionPage" class="page hidden">
+  <h2>Type d'intervention</h2>
+  <button class="btn" onclick="selectIntervention('Création')">Création</button>
+  <button class="btn" onclick="selectIntervention('Recâblage sans remplacement d’un appareillage')">Recâblage sans remplacement d’un appareillage</button>
+  <button class="btn" onclick="selectIntervention('Recâblage avec remplacement d’un appareillage')">Recâblage avec remplacement d’un appareillage</button>
+  <button class="btn" onclick="selectIntervention('Remplacement appareillage')">Remplacement appareillage</button>
+  <button class="btn" onclick="selectIntervention('Remplacement luminaire')">Remplacement luminaire</button>
+  <button class="btn back-btn" onclick="showPage('categoryPage')">Retour</button>
+</div>
+
+<div id="posePage" class="page hidden">
+  <h2>Type de pose</h2>
+  <button class="btn" onclick="selectPose('Encastré maçonnerie')">Encastré maçonnerie</button>
+  <button class="btn" onclick="selectPose('Placo')">Placo</button>
+  <button class="btn" onclick="selectPose('Semi-encastré')">Semi-encastré</button>
+  <button class="btn" onclick="selectPose('Sur-mesure')">Sur-mesure</button>
+  <button class="btn back-btn" onclick="showPage('interventionPage')">Retour</button>
+</div>
+
+<div id="designationPage" class="page hidden">
+  <h2>Désignation</h2>
+  <button class="btn" onclick="selectDesignation('Prise')">Prise</button>
+  <button class="btn" onclick="selectDesignation('Point de centre')">Point de centre</button>
+  <button class="btn" onclick="selectDesignation('Applique')">Applique</button>
+  <button class="btn" onclick="selectDesignation('Interrupteur simple')">Interrupteur simple</button>
+  <button class="btn" onclick="selectDesignation('Interrupteur double')">Interrupteur double</button>
+  <button class="btn back-btn" onclick="showPage('posePage')">Retour</button>
+</div>
+
+<div id="quantityPage" class="page hidden">
+  <h2>Quantité</h2>
+  <input type="number" id="qtyInput" min="1" value="1">
+  <button class="btn" onclick="addItem(parseInt(document.getElementById('qtyInput').value))">Valider</button>
+  <button class="btn back-btn" onclick="showPage('designationPage')">Retour</button>
+</div>
+
+<div id="summaryPage" class="page hidden">
+  <h2>Résumé</h2>
+  <div id="summaryContent"></div>
+  <button class="btn back-btn" onclick="showPage('homePage')">Retour</button>
+</div>
+
 </body>
 </html>
