@@ -1,28 +1,28 @@
-<!doctype html>
-<meta charset="utf-8">
-<title>Réinitialisation du cache</title>
-<pre id="log">Nettoyage…</pre>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Kill Service Worker</title>
+</head>
+<body>
+<h2>Suppression du Service Worker…</h2>
 <script>
-(async () => {
-  const log = m => (document.getElementById('log').textContent += "\n" + m);
-  try {
-    if ('serviceWorker' in navigator) {
-      log('Désinscription du service worker…');
-      const regs = await navigator.serviceWorker.getRegistrations();
-      for (const r of regs) await r.unregister();
-      log('Service worker désinscrit.');
-    } else {
-      log('Pas de service worker détecté.');
-    }
-    if (window.caches) {
-      const keys = await caches.keys();
-      for (const k of keys) await caches.delete(k);
-      log('Caches supprimés: ' + (keys || []).join(', '));
-    }
-    log('Recharge…');
-    location.href = 'index.html?v=' + Date.now();
-  } catch (e) {
-    log('Erreur: ' + e);
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+      if (registrations.length === 0) {
+        alert("ℹ️ Aucun Service Worker trouvé.");
+      } else {
+        for (let registration of registrations) {
+          registration.unregister().then(() => {
+            console.log("Service Worker supprimé :", registration);
+          });
+        }
+        alert("✅ Service Worker supprimé.\nRecharge ton appli avec ?v=" + Date.now());
+      }
+    });
+  } else {
+    alert("❌ Service Worker non supporté par ce navigateur.");
   }
-})();
 </script>
+</body>
+</html>
