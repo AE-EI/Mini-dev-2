@@ -70,17 +70,29 @@
     <h2>Menu Principal</h2>
     <div class="button-grid">
         <button onclick="goToAddPiece()">Ajouter une pièce</button>
+        <button onclick="goToSpecificMenu()">Ajouter installation spécifique</button>
+    </div>
+    <br>
+    <div class="button-grid">
         <button onclick="goToTotals()">Voir les totaux</button>
-        <button onclick="selectCategory('Spécifique')">Installations spécifiques</button>
     </div>
 </div>
-
+    
 <!-- PAGE 3 : Sélection de pièce -->
 <div id="page-select-piece" class="page">
     <button class="back-btn" onclick="showPage('page-menu')">Retour</button>
     <h2>Choisir une pièce</h2>
     <div class="button-grid" id="pieces-list">
         <!-- Liste des pièces prédéfinies + "Créer nouvelle pièce" -->
+    </div>
+</div>
+    
+    <!-- PAGE : Sélection installation spécifique -->
+<div id="page-specific-menu" class="page">
+    <button class="back-btn" onclick="showPage('page-menu')">Retour</button>
+    <h2>Choisir une installation spécifique</h2>
+    <div class="button-grid" id="specific-list">
+        <!-- Liste dynamique remplie en JS -->
     </div>
 </div>
 
@@ -91,6 +103,44 @@
     <input type="text" id="custom-piece-name" placeholder="Nom de la pièce" />
     <button onclick="confirmCustomPiece()">Valider</button>
 </div>
+
+    // Liste des installations spécifiques
+const specificItems = [
+    "Mise à la terre",
+    "Ventilation",
+    "Distribution Tableau"
+];
+
+// Affiche le menu spécifique
+function goToSpecificMenu() {
+    const list = document.getElementById("specific-list");
+    list.innerHTML = "";
+    specificItems.forEach(item => {
+        const btn = document.createElement("button");
+        btn.textContent = item;
+        btn.onclick = () => selectSpecific(item);
+        list.appendChild(btn);
+    });
+    showPage("page-specific-menu");
+}
+
+// Quand on choisit un type spécifique
+function selectSpecific(item) {
+    currentPiece = "Installation spécifique : " + item;
+    currentCategory = "Spécifique";
+    const price = parseFloat(prompt(`Prix pour ${item} (€) :`)) || 0;
+    const note = prompt("Note (facultatif) :") || "";
+    devis[currentPiece] = devis[currentPiece] || [];
+    devis[currentPiece].push({
+        category: "Spécifique",
+        intervention: item,
+        pose: "",
+        quantity: 1,
+        note: note,
+        price: price
+    });
+    showPage("page-menu");
+}
 
 <!-- PAGE 5 : Sélection catégorie -->
 <div id="page-category" class="page">
