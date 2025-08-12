@@ -2,20 +2,20 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>MiniDevis — simple</title>
+<title>MiniDevis — version simple</title>
 <style>
   body { font-family: Arial, sans-serif; margin: 18px; }
   h2 { margin: 0 0 12px; }
   .row { margin: 10px 0; }
-  button { display:inline-block; margin:4px; padding:8px 12px; font-size:16px; }
+  button { display:inline-block; margin:4px; padding:8px 12px; font-size:16px; background:#eee; border:1px solid #ccc; cursor:pointer; }
   .grid { display:grid; grid-template-columns: repeat(6, 56px); gap:6px; margin-top:8px; }
   pre { background:#f6f6f6; padding:10px; white-space:pre-wrap; }
   .muted { color:#666; font-size:13px; }
 </style>
 <script>
-// 🔹 Anti-cache automatique : ajoute un paramètre unique à chaque ressource
+// Anti-cache automatique
 (function() {
-  const version = Date.now(); // timestamp = change à chaque commit/push
+  const version = Date.now();
   const links = document.querySelectorAll('link[rel="stylesheet"], script[src]');
   links.forEach(el => {
     const attr = el.tagName === 'SCRIPT' ? 'src' : 'href';
@@ -37,7 +37,7 @@
 <p class="muted">Version simple avec anti-cache automatique.</p>
 
 <script>
-/* ---------- Données & état ---------- */
+/* ---------- Données ---------- */
 const PRIX = {
   "Prises - Encastree maconnerie": 120,
   "Prises - Apparent": 100,
@@ -50,31 +50,23 @@ const PRIX = {
 };
 
 const state = {
-  devis: {},           
-  notes: {},           
-  currentRoom: null,   
-  currentType: null,   
-  currentPose: null    
+  devis: {},
+  notes: {},
+  currentRoom: null,
+  currentType: null,
+  currentPose: null
 };
 
 /* ---------- Helpers DOM ---------- */
 const $t = () => document.getElementById("title");
 const $c = () => document.getElementById("content");
+function btn(label, handler) { const b = document.createElement("button"); b.textContent = label; b.onclick = handler; return b; }
 
-function btn(label, handler) {
-  const b = document.createElement("button");
-  b.textContent = label;
-  b.onclick = handler;
-  return b;
-}
-
-/* ---------- Flux principal ---------- */
+/* ---------- Navigation ---------- */
 function resetAll() {
   state.devis = {};
   state.notes = {};
   state.currentRoom = null;
-  state.currentType = null;
-  state.currentPose = null;
   showRooms();
 }
 
@@ -96,12 +88,8 @@ function showTypes() {
   $c().innerHTML = "";
   ["Prises","Éclairage","Spécifique"].forEach(type => {
     const b = btn(type, () => {
-      if (type === "Spécifique") {
-        addSpecific();
-      } else {
-        state.currentType = type;
-        showPose();
-      }
+      if (type === "Spécifique") addSpecific();
+      else { state.currentType = type; showPose(); }
     });
     $c().appendChild(b);
   });
@@ -119,44 +107,23 @@ function showPose() {
 }
 
 function askQuantity() {
-  $t().textContent = `Quantités — ${state.currentType} (${state.currentPose})`;
-  $c().innerHTML = "";
-  const grid = document.createElement("div");
-  grid.className = "grid";
   if (state.currentType === "Prises") {
-    addQtyButtons(grid, "prises 2p+T", keyPrice("Prises"));
-    $c().appendChild(grid);
-    $c().appendChild(btn("Terminer cette ligne", showSummary));
-    $c().appendChild(btn("⬅︎ Retour", showPose));
+    qtyGrid("prises 2p+T", keyPrice("Prises"), showSummary);
     return;
   }
-  askLightingSequence();
+  askLighting();
 }
 
-function askLightingSequence() {
+function askLighting() {
   const steps = [
     { label: "Points lumineux", key: "Point lumineux" },
     { label: "Interrupteurs simples", key: "Interrupteur simple" },
     { label: "Interrupteurs doubles", key: "Interrupteur double" }
   ];
-  let idx = 0;
-  const next = () => {
-    if (idx >= steps.length) {
-      $c().appendChild(document.createElement("br"));
-      $c().appendChild(btn("Terminer cette ligne", showSummary));
-      $c().appendChild(btn("⬅︎ Retour", showPose));
-      return;
-    }
-    const step = steps[idx];
-    $t().textContent = `${step.label} — ${state.currentPose}`;
-    $c().innerHTML = "";
-    const grid = document.createElement("div");
-    grid.className = "grid";
-    addQtyButtons(grid, step.key.toLowerCase(), keyPrice(step.key), () => {
-      idx++; next();
-    });
-    $c().appendChild(grid);
-    $c().appendChild(btn("⬅︎ Retour", showPose));
+  let i = 0;
+  const next = () => { if (i >= steps.length) { showSummary(); return; }
+    const s = steps[i];
+    qtyGrid(s.key.toLowerCase(), keyPrice(s.key), () => { i++; next(); });
   };
   next();
 }
@@ -164,45 +131,33 @@ function askLightingSequence() {
 /* ---------- Spécifique ---------- */
 function addSpecific() {
   const desc = prompt("Description de l'élément spécifique :");
-  if (!desc) { showTypes(); return; }
-  const prixStr = prompt("Prix estimé (€/u) :");
-  const qtyStr = prompt("Quantité : (laisser vide = 1)") || "1";
-  const p = parseFloat((prixStr || "").replace(",", "."));
-  const q = Math.max(1, parseInt(qtyStr, 10) || 1);
-  const line = `- ${q} ${desc.trim()} (${isFinite(p) ? p : 0}€/u)`;
-  state.devis[state.currentRoom].push(line);
+  if (!desc) return showTypes();
+  const prix = prompt("Prix estimé (€/u) :") || "0";
+  const qty = prompt("Quantité :") || "1";
+  state.devis[state.currentRoom].push(`- ${qty} ${desc} (${prix}€/u)`);
   showSummary();
 }
 
-/* ---------- Utils ---------- */
-function addQtyButtons(container, label, unitPrice, onPicked) {
+/* ---------- Utilitaires ---------- */
+function qtyGrid(label, unitPrice, cb) {
+  $t().textContent = `Quantité — ${label}`;
+  $c().innerHTML = "";
+  const grid = document.createElement("div");
+  grid.className = "grid";
   for (let i = 0; i <= 10; i++) {
     const b = document.createElement("button");
     b.textContent = i;
     b.onclick = () => {
-      if (i > 0) {
-        state.devis[state.currentRoom].push(
-          `- ${i} ${pluralize(label, i)} - ${state.currentPose} (${unitPrice}€/u)`
-        );
-      }
-      if (typeof onPicked === "function") onPicked();
+      if (i > 0) state.devis[state.currentRoom].push(`- ${i} ${label} - ${state.currentPose} (${unitPrice}€/u)`);
+      cb();
     };
-    container.appendChild(b);
+    grid.appendChild(b);
   }
+  $c().appendChild(grid);
 }
 
 function keyPrice(kind) {
   return PRIX[`${kind} - ${state.currentPose}`] ?? 0;
-}
-
-function pluralize(base, n) {
-  if (n > 1) {
-    if (base.endsWith("lumineux")) return base;
-    if (base.endsWith("simple")) return base.replace("simple", "simples");
-    if (base.endsWith("double")) return base.replace("double", "doubles");
-    return base + "s";
-  }
-  return base;
 }
 
 /* ---------- Résumé / Notes / Texte ---------- */
@@ -210,49 +165,25 @@ function showSummary() {
   $t().textContent = "Résumé du devis :";
   let html = "<pre>";
   const rooms = Object.keys(state.devis);
-  if (rooms.length === 0) html += "(vide)\n";
+  if (!rooms.length) html += "(vide)\n";
   rooms.forEach((room, idx) => {
     if (idx) html += "\n";
     html += room + " :\n";
-    const lines = state.devis[room];
-    if (!lines.length) html += "  (aucune ligne)\n";
-    lines.forEach(line => html += line + "\n");
-    if (state.notes && state.notes[room]) {
-      html += `  _${state.notes[room]}_\n`;
-    }
+    (state.devis[room] || []).forEach(line => html += line + "\n");
+    if (state.notes[room]) html += `_${state.notes[room]}_\n`;
   });
   html += "</pre>";
   html += '<div class="row">';
   html += '<button onclick="showRooms()">Ajouter autre chose</button>';
-  html += '<button onclick="addOrEditNote()">Ajouter/modifier une note</button>';
+  html += '<button onclick="addNote()">Ajouter/modifier une note</button>';
   html += '<button onclick="showText()">Afficher en texte</button>';
   html += "</div>";
   $c().innerHTML = html;
 }
 
-function addOrEditNote() {
-  const rooms = Object.keys(state.devis);
-  if (rooms.length === 0) { alert("Aucune pièce pour le moment."); return; }
-  if (rooms.length === 1) return editNoteForRoom(rooms[0]);
-  $t().textContent = "Choisir la pièce pour la note :";
-  $c().innerHTML = "";
-  rooms.forEach(room => {
-    $c().appendChild(btn(room, () => editNoteForRoom(room)));
-  });
-  $c().appendChild(btn("⬅︎ Retour", showSummary));
-}
-
-function editNoteForRoom(room) {
-  const existing = state.notes[room] ? `\n(Note actuelle : "${state.notes[room]}")` : "";
-  const note = prompt(`Note pour "${room}" :` + existing, state.notes[room] || "");
-  if (note !== null) {
-    const trimmed = note.trim();
-    if (trimmed) {
-      state.notes[room] = trimmed;
-    } else {
-      delete state.notes[room];
-    }
-  }
+function addNote() {
+  const note = prompt(`Note pour ${state.currentRoom} :`, state.notes[state.currentRoom] || "");
+  if (note !== null) state.notes[state.currentRoom] = note.trim();
   showSummary();
 }
 
@@ -261,11 +192,9 @@ function showText() {
   const rooms = Object.keys(state.devis);
   rooms.forEach((room, idx) => {
     if (idx) out += "\n";
-    out += `**${room}**\n`;
-    (state.devis[room] || []).forEach(line => { out += line + "\n"; });
-    if (state.notes && state.notes[room]) {
-      out += `_${state.notes[room]}_\n`;
-    }
+    out += `<strong>${room}</strong>\n`;
+    (state.devis[room] || []).forEach(line => out += line + "\n");
+    if (state.notes[room]) out += `_${state.notes[room]}_\n`;
     out += "\n";
   });
   $t().textContent = "Texte à copier :";
