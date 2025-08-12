@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>MiniDevis Test</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; }
+  button { display: block; margin: 5px 0; padding: 10px; font-size: 16px; }
+</style>
+</head>
+<body>
+
+<h2 id="title">Choisis une pièce :</h2>
+<div id="content"></div>
+
+<script>
+let devis = {};
+let currentRoom = '';
+
+function showRooms() {
+  document.getElementById('title').textContent = "Choisis une pièce :";
+  document.getElementById('content').innerHTML = '';
+  ['Cuisine','Chambre'].forEach(room => {
+    let btn = document.createElement('button');
+    btn.textContent = room;
+    btn.onclick = () => { currentRoom = room; devis[currentRoom] = []; showTypes(); };
+    document.getElementById('content').appendChild(btn);
+  });
+}
+
+function showTypes() {
+  document.getElementById('title').textContent = `Que veux-tu ajouter dans ${currentRoom} ?`;
+  document.getElementById('content').innerHTML = '';
+  ['Prises','Éclairage'].forEach(type => {
+    let btn = document.createElement('button');
+    btn.textContent = type;
+    btn.onclick = () => { currentType = type; showPose(type); };
+    document.getElementById('content').appendChild(btn);
+  });
+}
+
+function showPose(type) {
+  document.getElementById('title').textContent = `Type de pose pour ${type} :`;
+  document.getElementById('content').innerHTML = '';
+  let poses = ['Encastree maconnerie','Apparent'];
+  poses.forEach(pose => {
+    let btn = document.createElement('button');
+    btn.textContent = pose;
+    btn.onclick = () => askQuantity(type, pose);
+    document.getElementById('content').appendChild(btn);
+  });
+}
+
+function askQuantity(type, pose) {
+  let q = prompt(`Combien pour ${type} (${pose}) ?`);
+  if (!q) return showRooms();
+  devis[currentRoom].push(`${q} ${type} - ${pose}`);
+  if (type === 'Éclairage') {
+    let pts = prompt("Nombre de points lumineux ?");
+    let intS = prompt("Nombre d'interrupteurs simples ?");
+    let intD = prompt("Nombre d'interrupteurs doubles ?");
+    devis[currentRoom].push(`${pts} points lumineux - ${pose}`);
+    devis[currentRoom].push(`${intS} interrupteurs simples - ${pose}`);
+    devis[currentRoom].push(`${intD} interrupteurs doubles - ${pose}`);
+  }
+  askNote();
+}
+
+function askNote() {
+  let note = prompt("Ajouter une note ? (laisser vide pour passer)");
+  if (note) devis[currentRoom].push(`Note : ${note}`);
+  showSummary();
+}
+
+function showSummary() {
+  document.getElementById('title').textContent = "Résumé du devis :";
+  let html = '<pre>';
+  for (let room in devis) {
+    html += room + ":\n";
+    devis[room].forEach(item => html += "- " + item + "\n");
+    html += "\n";
+  }
+  html += '</pre><button onclick="showRooms()">Ajouter autre chose</button>';
+  document.getElementById('content').innerHTML = html;
+}
+
+showRooms();
+</script>
+
+</body>
+</html>
