@@ -2,157 +2,284 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>MiniDevis V3</title>
+<title>MiniDevis — simple</title>
 <style>
-  body { font-family: Arial, sans-serif; padding: 20px; }
-  button { display: inline-block; margin: 5px; padding: 10px; font-size: 16px; }
-  .grid { display: grid; grid-template-columns: repeat(6, 50px); gap: 5px; }
-  pre { background: #f0f0f0; padding: 10px; }
+  body { font-family: Arial, sans-serif; margin: 18px; }
+  h2 { margin: 0 0 12px; }
+  .row { margin: 10px 0; }
+  button { display:inline-block; margin:4px; padding:8px 12px; font-size:16px; }
+  .grid { display:grid; grid-template-columns: repeat(6, 56px); gap:6px; margin-top:8px; }
+  pre { background:#f6f6f6; padding:10px; white-space:pre-wrap; }
+  .muted { color:#666; font-size:13px; }
 </style>
 </head>
 <body>
 
 <h2 id="title">Choisis une pièce :</h2>
 <div id="content"></div>
+<div class="row">
+  <button onclick="resetAll()">Réinitialiser</button>
+  <button onclick="showSummary()">Voir le résumé</button>
+</div>
+<p class="muted">Version simple : 1 fichier, sans PWA — pour itérer vite.</p>
 
 <script>
-let devis = {};
-let currentRoom = '';
-let currentType = '';
-let currentPose = '';
-
-const prix = {
+/* ---------- Données & état ---------- */
+const PRIX = {
   "Prises - Encastree maconnerie": 120,
   "Prises - Apparent": 100,
   "Point lumineux - Encastree maconnerie": 80,
   "Point lumineux - Apparent": 70,
   "Interrupteur simple - Encastree maconnerie": 40,
-  "Interrupteur simple - Apparent": 30,
-  "Interrupteur double - Encastree maconnerie": 50,
-  "Interrupteur double - Apparent": 40
+  "Interrupteur simple - Apparent": 35,
+  "Interrupteur double - Encastree maconnerie": 55,
+  "Interrupteur double - Apparent": 50
 };
 
+const state = {
+  devis: {},           // { "Cuisine": [ "- 2 prises ...", ... ], "Chambre": [...] }
+  notes: {},           // { "Cuisine": "ma note", ... }
+  currentRoom: null,   // "Cuisine" | "Chambre"
+  currentType: null,   // "Prises" | "Éclairage"
+  currentPose: null    // "Encastree maconnerie" | "Apparent"
+};
+
+/* ---------- Helpers DOM ---------- */
+const $t = () => document.getElementById("title");
+const $c = () => document.getElementById("content");
+
+function btn(label, handler) {
+  const b = document.createElement("button");
+  b.textContent = label;
+  b.onclick = handler;
+  return b;
+}
+
+/* ---------- Flux principal ---------- */
+function resetAll() {
+  state.devis = {};
+  state.notes = {};
+  state.currentRoom = null;
+  state.currentType = null;
+  state.currentPose = null;
+  showRooms();
+}
+
 function showRooms() {
-  document.getElementById('title').textContent = "Choisis une pièce :";
-  document.getElementById('content').innerHTML = '';
-  ['Cuisine','Chambre'].forEach(room => {
-    let btn = document.createElement('button');
-    btn.textContent = room;
-    btn.onclick = () => { currentRoom = room; if (!devis[currentRoom]) devis[currentRoom] = []; showTypes(); };
-    document.getElementById('content').appendChild(btn);
+  $t().textContent = "Choisis une pièce :";
+  $c().innerHTML = "";
+  ["Cuisine","Chambre"].forEach(room => {
+    const b = btn(room, () => {
+      state.currentRoom = room;
+      if (!state.devis[room]) state.devis[room] = [];
+      showTypes();
+    });
+    $c().appendChild(b);
   });
 }
 
 function showTypes() {
-  document.getElementById('title').textContent = `Que veux-tu ajouter dans ${currentRoom} ?`;
-  document.getElementById('content').innerHTML = '';
-  ['Prises','Éclairage'].forEach(type => {
-    let btn = document.createElement('button');
-    btn.textContent = type;
-    btn.onclick = () => { currentType = type; showPose(type); };
-    document.getElementById('content').appendChild(btn);
+  $t().textContent = `Que veux-tu ajouter dans ${state.currentRoom} ?`;
+  $c().innerHTML = "";
+  // Prises, Éclairage, Spécifique
+  ["Prises","Éclairage","Spécifique"].forEach(type => {
+    const b = btn(type, () => {
+      if (type === "Spécifique") {
+        addSpecific();
+      } else {
+        state.currentType = type;
+        showPose();
+      }
+    });
+    $c().appendChild(b);
   });
+  $c().appendChild(btn("⬅︎ Retour", showRooms));
 }
 
-function showPose(type) {
-  document.getElementById('title').textContent = `Type de pose pour ${type} :`;
-  document.getElementById('content').innerHTML = '';
-  ['Encastree maconnerie','Apparent'].forEach(pose => {
-    let btn = document.createElement('button');
-    btn.textContent = pose;
-    btn.onclick = () => { currentPose = pose; askQuantity(type, pose); };
-    document.getElementById('content').appendChild(btn);
+function showPose() {
+  $t().textContent = `Type de pose pour ${state.currentType} :`;
+  $c().innerHTML = "";
+  ["Encastree maconnerie","Apparent"].forEach(pose => {
+    const b = btn(pose, () => { state.currentPose = pose; askQuantity(); });
+    $c().appendChild(b);
   });
+  $c().appendChild(btn("⬅︎ Retour", showTypes));
 }
 
-function askQuantity(type, pose) {
-  document.getElementById('title').textContent = `Quantité pour ${type} (${pose}) :`;
-  document.getElementById('content').innerHTML = '';
-  let grid = document.createElement('div');
-  grid.className = 'grid';
-  for (let i = 1; i <= 10; i++) {
-    let btn = document.createElement('button');
-    btn.textContent = i;
-    btn.onclick = () => {
-      if (type === 'Prises') {
-        devis[currentRoom].push(`${i} prises 2p+T - ${pose} (${prix[`Prises - ${pose}`]}€/u)`);
-        showSummary();
-      }
-      if (type === 'Éclairage') {
-        askLightingDetails(pose);
-      }
-    };
-    grid.appendChild(btn);
+function askQuantity() {
+  $t().textContent = `Quantités — ${state.currentType} (${state.currentPose})`;
+  $c().innerHTML = "";
+
+  // grille 0..10
+  const grid = document.createElement("div");
+  grid.className = "grid";
+
+  if (state.currentType === "Prises") {
+    addQtyButtons(grid, "prises 2p+T", keyPrice("Prises"));
+    $c().appendChild(grid);
+    $c().appendChild(btn("Terminer cette ligne", showSummary));
+    $c().appendChild(btn("⬅︎ Retour", showPose));
+    return;
   }
-  document.getElementById('content').appendChild(grid);
+
+  // Éclairage: on demande successivement points / inter simple / inter double
+  askLightingSequence();
 }
 
-function askLightingDetails(pose) {
-  let details = [
+function askLightingSequence() {
+  const steps = [
     { label: "Points lumineux", key: "Point lumineux" },
     { label: "Interrupteurs simples", key: "Interrupteur simple" },
     { label: "Interrupteurs doubles", key: "Interrupteur double" }
   ];
-  let index = 0;
+  let idx = 0;
 
-  function askNext() {
-    if (index >= details.length) {
-      showSummary();
+  const next = () => {
+    if (idx >= steps.length) {
+      $c().appendChild(document.createElement("br"));
+      $c().appendChild(btn("Terminer cette ligne", showSummary));
+      $c().appendChild(btn("⬅︎ Retour", showPose));
       return;
     }
-    let item = details[index];
-    document.getElementById('title').textContent = `${item.label} (${pose}) :`;
-    document.getElementById('content').innerHTML = '';
-    let grid = document.createElement('div');
-    grid.className = 'grid';
-    for (let i = 0; i <= 10; i++) {
-      let btn = document.createElement('button');
-      btn.textContent = i;
-      btn.onclick = () => {
-        if (i > 0) devis[currentRoom].push(`${i} ${item.key.toLowerCase()}${i>1?'s':''} - ${pose} (${prix[`${item.key} - ${pose}`]}€/u)`);
-        index++;
-        askNext();
-      };
-      grid.appendChild(btn);
-    }
-    document.getElementById('content').appendChild(grid);
-  }
+    const step = steps[idx];
+    $t().textContent = `${step.label} — ${state.currentPose}`;
+    $c().innerHTML = "";
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    addQtyButtons(grid, step.key.toLowerCase(), keyPrice(step.key), () => {
+      idx++; next();
+    });
+    $c().appendChild(grid);
+    $c().appendChild(btn("⬅︎ Retour", showPose));
+  };
 
-  askNext();
+  next();
 }
 
+/* ---------- Spécifique (saisie libre + prix + qty) ---------- */
+function addSpecific() {
+  const desc = prompt("Description de l'élément spécifique :");
+  if (!desc) { showTypes(); return; }
+  const prixStr = prompt("Prix estimé (€/u) :");
+  const qtyStr = prompt("Quantité : (laisser vide = 1)") || "1";
+
+  const p = parseFloat((prixStr || "").toString().replace(",", "."));
+  const q = Math.max(1, parseInt(qtyStr, 10) || 1);
+
+  const line = `- ${q} ${desc.trim()} (${isFinite(p) ? p : 0}€/u)`;
+  state.devis[state.currentRoom].push(line);
+  showSummary();
+}
+
+/* ---------- Utilitaires de quantités ---------- */
+function addQtyButtons(container, label, unitPrice, onPicked) {
+  for (let i = 0; i <= 10; i++) {
+    const b = document.createElement("button");
+    b.textContent = i;
+    b.onclick = () => {
+      if (i > 0) {
+        state.devis[state.currentRoom].push(
+          `- ${i} ${pluralize(label, i)} - ${state.currentPose} (${unitPrice}€/u)`
+        );
+      }
+      if (typeof onPicked === "function") onPicked();
+    };
+    container.appendChild(b);
+  }
+}
+
+function keyPrice(kind) {
+  // kind: "Prises" | "Point lumineux" | "Interrupteur simple" | "Interrupteur double"
+  return PRIX[`${kind} - ${state.currentPose}`] ?? 0;
+}
+
+function pluralize(base, n) {
+  if (n > 1) {
+    if (base.endsWith("lumineux")) return base; // invariable ici
+    if (base.endsWith("simple")) return base.replace("simple", "simples");
+    if (base.endsWith("double")) return base.replace("double", "doubles");
+    return base + "s";
+  }
+  return base;
+}
+
+/* ---------- Résumé / Notes / Texte ---------- */
 function showSummary() {
-  document.getElementById('title').textContent = "Résumé du devis :";
-  let html = '<pre>';
-  for (let room in devis) {
-    html += room + ":\n";
-    devis[room].forEach(item => html += "- " + item + "\n");
-    html += "\n";
-  }
-  html += '</pre>';
-  html += '<button onclick="showRooms()">Ajouter autre chose</button> ';
-  html += '<button onclick="addNote()">Ajouter une note</button> ';
+  $t().textContent = "Résumé du devis :";
+  let html = "<pre>";
+  const rooms = Object.keys(state.devis);
+  if (rooms.length === 0) html += "(vide)\n";
+  rooms.forEach((room, idx) => {
+    if (idx) html += "\n";
+    html += room + " :\n";
+    const lines = state.devis[room];
+    if (!lines.length) html += "  (aucune ligne)\n";
+    lines.forEach(line => html += line + "\n");
+    if (state.notes && state.notes[room]) {
+      html += `  _${state.notes[room]}_\n`; // note en italique en fin de pièce
+    }
+  });
+  html += "</pre>";
+
+  // actions
+  html += '<div class="row">';
+  html += '<button onclick="showRooms()">Ajouter autre chose</button>';
+  html += '<button onclick="addOrEditNote()">Ajouter/modifier une note</button>';
   html += '<button onclick="showText()">Afficher en texte</button>';
-  document.getElementById('content').innerHTML = html;
+  html += "</div>";
+
+  $c().innerHTML = html;
 }
 
-function addNote() {
-  let note = prompt("Note :");
-  if (note && currentRoom) devis[currentRoom].push(`Note : ${note}`);
+function addOrEditNote() {
+  // Choix de la pièce si plusieurs
+  const rooms = Object.keys(state.devis);
+  if (rooms.length === 0) { alert("Aucune pièce pour le moment."); return; }
+
+  // S'il n'y en a qu'une, on édite directement
+  if (rooms.length === 1) return editNoteForRoom(rooms[0]);
+
+  // Sinon, on propose de choisir
+  $t().textContent = "Choisir la pièce pour la note :";
+  $c().innerHTML = "";
+  rooms.forEach(room => {
+    $c().appendChild(btn(room, () => editNoteForRoom(room)));
+  });
+  $c().appendChild(btn("⬅︎ Retour", showSummary));
+}
+
+function editNoteForRoom(room) {
+  const existing = (state.notes && state.notes[room]) ? `\n(Note actuelle : "${state.notes[room]}")` : "";
+  const note = prompt("Note pour la pièce \"" + room + "\" :" + existing, state.notes[room] || "");
+  if (note !== null) {
+    const trimmed = note.trim();
+    if (trimmed) {
+      state.notes[room] = trimmed; // unique par pièce
+    } else {
+      delete state.notes[room]; // supprimer si vide
+    }
+  }
   showSummary();
 }
 
 function showText() {
-  let text = '';
-  for (let room in devis) {
-    text += room + ":\n";
-    devis[room].forEach(item => text += "- " + item + "\n");
-    text += "\n";
-  }
-  document.getElementById('title').textContent = "Version texte du devis :";
-  document.getElementById('content').innerHTML = '<pre>' + text + '</pre><button onclick="showSummary()">Retour</button>';
+  // Affichage "texte" : pièce en gras (markdown **), espace entre chaque pièce
+  let out = "";
+  const rooms = Object.keys(state.devis);
+  rooms.forEach((room, idx) => {
+    if (idx) out += "\n";
+    out += `**${room}**\n`; // pièce en gras
+    (state.devis[room] || []).forEach(line => { out += line + "\n"; });
+    if (state.notes && state.notes[room]) {
+      out += `_${state.notes[room]}_\n`; // note en italique
+    }
+    out += "\n"; // espace entre pièces
+  });
+  $t().textContent = "Texte à copier :";
+  $c().innerHTML = `<pre>${out || "(vide)"}</pre><div class="row"><button onclick="showSummary()">Retour</button></div>`;
 }
 
+/* ---------- Démarrage ---------- */
 showRooms();
 </script>
 
