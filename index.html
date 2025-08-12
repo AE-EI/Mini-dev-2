@@ -1,10 +1,10 @@
-<!-- MiniDevis - Version test connexion et bandeau -->
+<!-- MiniDevis - Test Installations Spécifiques -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MiniDevis - Test</title>
+<title>MiniDevis - Installations Spécifiques</title>
 <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
     .hidden { display: none; }
@@ -26,10 +26,24 @@
 
 <!-- Application -->
 <div id="app" class="hidden">
-    <div id="bandeau">MiniDevis – vTest – 12/08/2025</div>
-    <h2>Choisissez une pièce</h2>
-    <button class="btn" onclick="addItem('Cuisine', '1 prise')">Cuisine</button>
-    <button class="btn" onclick="addItem('Chambre', '1 point lumineux')">Chambre</button>
+    <div id="bandeau">MiniDevis – vTestIS – 12/08/2025</div>
+
+    <h2>Installations spécifiques</h2>
+
+    <h3>Mise à la terre</h3>
+    <button class="btn" onclick="addItem('Mise à la terre', 'Complète', 500)">Complète (500€)</button>
+    <button class="btn" onclick="addItem('Mise à la terre', 'Piquet supp. + 2m câblette', 100)">Piquet supp. (100€)</button>
+    <button class="btn" onclick="addItem('Mise à la terre', 'Partielle - Rempl. conducteur/m', 20)">Rempl. conducteur/m (20€)</button>
+    <button class="btn" onclick="addItem('Mise à la terre', 'Barrette de coupure', 40)">Barrette coupure (40€)</button>
+
+    <h3>Ventilation</h3>
+    <button class="btn" onclick="addItem('Ventilation', 'VMC simple flux', 800)">VMC simple flux (800€)</button>
+    <button class="btn" onclick="addItem('Ventilation', 'Pose chapeau toiture Ø125', 150)">Chapeau toiture Ø125 (150€)</button>
+
+    <h3>Distribution tableau</h3>
+    <button class="btn" onclick="addItem('Distribution tableau', 'Tableau 4 rangées', 600)">Tableau 4 rangées (600€)</button>
+    <button class="btn" onclick="addItem('Distribution tableau', 'Peigne de répartition', 50)">Peigne répartition (50€)</button>
+
     <br><br>
     <button class="btn" onclick="showSummary()">Voir résumé</button>
     <div id="summary" class="hidden">
@@ -52,19 +66,28 @@
         }
     }
 
-    function addItem(piece, item) {
-        if (!devis[piece]) devis[piece] = [];
-        devis[piece].push(item);
-        alert(item + " ajouté à " + piece);
+    function addItem(section, item, price) {
+        if (!devis[section]) devis[section] = [];
+        devis[section].push({ name: item, price: price });
+        alert(item + " ajouté à " + section);
     }
 
     function showSummary() {
         let output = "";
-        for (let piece in devis) {
-            output += piece + " :\n";
-            devis[piece].forEach(el => output += "- " + el + "\n");
-            output += "\n";
+        let totalGlobal = 0;
+        for (let section in devis) {
+            if (devis[section].length > 0) {
+                output += section + " :\n";
+                let totalSection = 0;
+                devis[section].forEach(el => {
+                    output += "- " + el.name + " (" + el.price + "€/u)\n";
+                    totalSection += el.price;
+                });
+                output += "Total " + section + " : " + totalSection + "€\n\n";
+                totalGlobal += totalSection;
+            }
         }
+        output += "Total global : " + totalGlobal + "€";
         document.getElementById("summaryText").textContent = output;
         document.getElementById("summary").classList.remove("hidden");
     }
