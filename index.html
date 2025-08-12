@@ -8,6 +8,7 @@
   h2 { margin: 0 0 12px; }
   button { margin:4px; padding:8px 12px; font-size:16px; background:#eee; border:1px solid #ccc; cursor:pointer; }
   .grid { display:grid; grid-template-columns: repeat(6, 56px); gap:6px; margin-top:8px; }
+  .pieces-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; }
   pre { background:#f6f6f6; padding:10px; white-space:pre-wrap; }
   .muted { color:#666; font-size:13px; }
 </style>
@@ -24,14 +25,22 @@
 
 <script>
 const PRIX = {
-  "Prises - Encastree maconnerie": 120,
-  "Prises - Apparent": 100,
-  "Point lumineux - Encastree maconnerie": 80,
-  "Point lumineux - Apparent": 70,
-  "Interrupteur simple - Encastree maconnerie": 40,
-  "Interrupteur simple - Apparent": 35,
-  "Interrupteur double - Encastree maconnerie": 55,
-  "Interrupteur double - Apparent": 50
+  "Prises - Encastré maçonnerie": 120,
+  "Prises - Placo": 0,
+  "Prises - Semi-encastré": 0,
+  "Prises - Sur-mesure": 0,
+  "Point lumineux - Encastré maçonnerie": 80,
+  "Point lumineux - Placo": 0,
+  "Point lumineux - Semi-encastré": 0,
+  "Point lumineux - Sur-mesure": 0,
+  "Interrupteur simple - Encastré maçonnerie": 40,
+  "Interrupteur simple - Placo": 0,
+  "Interrupteur simple - Semi-encastré": 0,
+  "Interrupteur simple - Sur-mesure": 0,
+  "Interrupteur double - Encastré maçonnerie": 55,
+  "Interrupteur double - Placo": 0,
+  "Interrupteur double - Semi-encastré": 0,
+  "Interrupteur double - Sur-mesure": 0
 };
 
 const state = { devis: {}, notes: {}, currentRoom: null, currentType: null, currentPose: null };
@@ -46,14 +55,20 @@ function resetAll() {
 function showRooms() {
   $t().textContent = "Choisis une pièce :";
   $c().innerHTML = "";
-  ["Cuisine","Chambre"].forEach(room => {
+  const grid = document.createElement("div");
+  grid.className = "pieces-grid";
+  [
+    "Cuisine","Chambre","Salle de bain","Salle d’eau","Garage",
+    "Couloir","Débarras","Salon","Salle à manger","Extérieur","Grenier/combles"
+  ].forEach(room => {
     const b = btn(room, () => {
       state.currentRoom = room;
       if (!state.devis[room]) state.devis[room] = [];
       showTypes();
     });
-    $c().appendChild(b);
+    grid.appendChild(b);
   });
+  $c().appendChild(grid);
 }
 
 function showTypes() {
@@ -72,7 +87,7 @@ function showTypes() {
 function showPose() {
   $t().textContent = `Type de pose pour ${state.currentType} :`;
   $c().innerHTML = "";
-  ["Encastree maconnerie","Apparent"].forEach(pose => {
+  ["Encastré maçonnerie","Placo","Semi-encastré","Sur-mesure"].forEach(pose => {
     const b = btn(pose, () => { state.currentPose = pose; askQuantity(); });
     $c().appendChild(b);
   });
@@ -160,7 +175,7 @@ function showText() {
   const rooms = Object.keys(state.devis);
   rooms.forEach((room, idx) => {
     if (idx) out += "\n";
-    out += `**${room}**\n`; // gras
+    out += `**${room}**\n`;
     (state.devis[room] || []).forEach(line => out += line + "\n");
     if (state.notes[room]) out += `_${state.notes[room]}_\n`;
     out += "\n";
