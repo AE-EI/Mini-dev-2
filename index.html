@@ -2,11 +2,12 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>MiniDevis v2</title>
+<title>MiniDevis V3</title>
 <style>
   body { font-family: Arial, sans-serif; padding: 20px; }
   button { display: inline-block; margin: 5px; padding: 10px; font-size: 16px; }
   .grid { display: grid; grid-template-columns: repeat(6, 50px); gap: 5px; }
+  pre { background: #f0f0f0; padding: 10px; }
 </style>
 </head>
 <body>
@@ -37,7 +38,7 @@ function showRooms() {
   ['Cuisine','Chambre'].forEach(room => {
     let btn = document.createElement('button');
     btn.textContent = room;
-    btn.onclick = () => { currentRoom = room; devis[currentRoom] = []; showTypes(); };
+    btn.onclick = () => { currentRoom = room; if (!devis[currentRoom]) devis[currentRoom] = []; showTypes(); };
     document.getElementById('content').appendChild(btn);
   });
 }
@@ -56,8 +57,7 @@ function showTypes() {
 function showPose(type) {
   document.getElementById('title').textContent = `Type de pose pour ${type} :`;
   document.getElementById('content').innerHTML = '';
-  let poses = ['Encastree maconnerie','Apparent'];
-  poses.forEach(pose => {
+  ['Encastree maconnerie','Apparent'].forEach(pose => {
     let btn = document.createElement('button');
     btn.textContent = pose;
     btn.onclick = () => { currentPose = pose; askQuantity(type, pose); };
@@ -68,24 +68,18 @@ function showPose(type) {
 function askQuantity(type, pose) {
   document.getElementById('title').textContent = `Quantité pour ${type} (${pose}) :`;
   document.getElementById('content').innerHTML = '';
-
   let grid = document.createElement('div');
   grid.className = 'grid';
-
-  for (let i = 0; i <= 10; i++) {
+  for (let i = 1; i <= 10; i++) {
     let btn = document.createElement('button');
     btn.textContent = i;
     btn.onclick = () => {
-      if (i > 0) {
-        if (type === 'Prises') {
-          devis[currentRoom].push(`${i} prises 2p+T - ${pose} (${prix[`Prises - ${pose}`]}€/u)`);
-          askNoteOption();
-        }
-        if (type === 'Éclairage') {
-          askLightingDetails(pose);
-        }
-      } else {
-        showRooms();
+      if (type === 'Prises') {
+        devis[currentRoom].push(`${i} prises 2p+T - ${pose} (${prix[`Prises - ${pose}`]}€/u)`);
+        showSummary();
+      }
+      if (type === 'Éclairage') {
+        askLightingDetails(pose, i);
       }
     };
     grid.appendChild(btn);
@@ -93,7 +87,7 @@ function askQuantity(type, pose) {
   document.getElementById('content').appendChild(grid);
 }
 
-function askLightingDetails(pose) {
+function askLightingDetails(pose, nbPrises) {
   let details = [
     { label: "Points lumineux", key: "Point lumineux" },
     { label: "Interrupteurs simples", key: "Interrupteur simple" },
@@ -103,7 +97,7 @@ function askLightingDetails(pose) {
 
   function askNext() {
     if (index >= details.length) {
-      askNoteOption();
+      showSummary();
       return;
     }
     let item = details[index];
@@ -111,14 +105,11 @@ function askLightingDetails(pose) {
     document.getElementById('content').innerHTML = '';
     let grid = document.createElement('div');
     grid.className = 'grid';
-
     for (let i = 0; i <= 10; i++) {
       let btn = document.createElement('button');
       btn.textContent = i;
       btn.onclick = () => {
-        if (i > 0) {
-          devis[currentRoom].push(`${i} ${item.key.toLowerCase()}${i>1?'s':''} - ${pose} (${prix[`${item.key} - ${pose}`]}€/u)`);
-        }
+        if (i > 0) devis[currentRoom].push(`${i} ${item.key.toLowerCase()}${i>1?'s':''} - ${pose} (${prix[`${item.key} - ${pose}`]}€/u)`);
         index++;
         askNext();
       };
@@ -128,26 +119,6 @@ function askLightingDetails(pose) {
   }
 
   askNext();
-}
-
-function askNoteOption() {
-  document.getElementById('title').textContent = "Souhaites-tu ajouter une note ?";
-  document.getElementById('content').innerHTML = '';
-
-  let yesBtn = document.createElement('button');
-  yesBtn.textContent = "Oui";
-  yesBtn.onclick = () => {
-    let note = prompt("Note :");
-    if (note) devis[currentRoom].push(`Note : ${note}`);
-    showSummary();
-  };
-
-  let noBtn = document.createElement('button');
-  noBtn.textContent = "Non";
-  noBtn.onclick = () => showSummary();
-
-  document.getElementById('content').appendChild(yesBtn);
-  document.getElementById('content').appendChild(noBtn);
 }
 
 function showSummary() {
@@ -160,22 +131,26 @@ function showSummary() {
   }
   html += '</pre>';
   html += '<button onclick="showRooms()">Ajouter autre chose</button> ';
-  html += '<button onclick="exportTXT()">Exporter en TXT</button>';
+  html += '<button onclick="addNote()">Ajouter une note</button> ';
+  html += '<button onclick="showText()">Afficher en texte</button>';
   document.getElementById('content').innerHTML = html;
 }
 
-function exportTXT() {
-  let content = '';
+function addNote() {
+  let note = prompt("Note :");
+  if (note && currentRoom) devis[currentRoom].push(`Note : ${note}`);
+  showSummary();
+}
+
+function showText() {
+  let text = '';
   for (let room in devis) {
-    content += room + ":\n";
-    devis[room].forEach(item => content += "- " + item + "\n");
-    content += "\n";
+    text += room + ":\n";
+    devis[room].forEach(item => text += "- " + item + "\n");
+    text += "\n";
   }
-  let blob = new Blob([content], { type: 'text/plain' });
-  let a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'devis.txt';
-  a.click();
+  document.getElementById('title').textContent = "Version texte du devis :";
+  document.getElementById('content').innerHTML = '<pre>' + text + '</pre><button onclick="showSummary()">Retour</button>';
 }
 
 showRooms();
