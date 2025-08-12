@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <title>MiniDevis V3</title>
+<link rel="manifest" href="manifest.json">
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js');
+}
+</script>
 <style>
   body { font-family: Arial, sans-serif; padding: 20px; }
   button { display: inline-block; margin: 5px; padding: 10px; font-size: 16px; }
@@ -79,7 +85,7 @@ function askQuantity(type, pose) {
         showSummary();
       }
       if (type === 'Éclairage') {
-        askLightingDetails(pose, i);
+        askLightingDetails(pose);
       }
     };
     grid.appendChild(btn);
@@ -87,7 +93,7 @@ function askQuantity(type, pose) {
   document.getElementById('content').appendChild(grid);
 }
 
-function askLightingDetails(pose, nbPrises) {
+function askLightingDetails(pose) {
   let details = [
     { label: "Points lumineux", key: "Point lumineux" },
     { label: "Interrupteurs simples", key: "Interrupteur simple" },
